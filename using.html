@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="generator" content="jemdoc, see https://www.cvxgrp.org/jemdoc-cvx/index.html">
+<link rel="stylesheet" href="jemdoc-cvx.css">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
+<title>jemdoc-cvx &ndash; running jemdoc</title>
+</head>
+<body>
+<script>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-2725246-3']);
+_gaq.push(['_trackPageview']);
+(function() {
+ var ga = document.createElement('script'); ga.async = true;
+ ga.src = ('https:' == document.location.protocol ? 'https://ssl'
+   : 'http://www') + '.google-analytics.com/ga.js';
+ var s = document.getElementsByTagName('script')[0];
+ s.parentNode.insertBefore(ga, s);
+ })();
+</script>
+<div id="tlayout">
+<nav id="layout-menu">
+<div class="menu-category">jemdoc</div>
+<div class="menu-item"><a href="index.html">home</a></div>
+<div class="menu-item"><a href="download.html">download</a></div>
+<div class="menu-item"><a href="revision.html">version/bug&nbsp;info</a></div>
+<div class="menu-item"><a href="contact.html">contact</a></div>
+<div class="menu-category">user's guide</div>
+<div class="menu-item"><a href="using.html" class="current">running&nbsp;jemdoc</a></div>
+<div class="menu-item"><a href="syntax.html">syntax</a></div>
+<div class="menu-item"><a href="example.html">example&nbsp;page</a></div>
+<div class="menu-item"><a href="extra.html">extra&nbsp;syntax</a></div>
+<div class="menu-category">configuration</div>
+<div class="menu-item"><a href="htmlchanges.html">html&nbsp;changes</a></div>
+<div class="menu-item"><a href="menu.html">adding&nbsp;a&nbsp;menu</a></div>
+<div class="menu-item"><a href="modelines.html">modelines</a></div>
+<div class="menu-category">goodies</div>
+<div class="menu-item"><a href="stuff.html">vim,&nbsp;make</a></div>
+<div class="menu-item"><a href="latex.html">latex&nbsp;equations</a></div>
+<div class="menu-item"><a href="tables.html">tables</a></div>
+</nav>
+<main id="layout-content">
+<div id="toptitle">
+<h1>jemdoc-cvx &ndash; running jemdoc</h1>
+</div>
+<p>This page covers everything about <i>using</i> the <code>jemdoc</code> tool: invocation,
+command-line options, modelines, themes, and a recommended workflow. For
+the markup language itself, see the <a href="syntax.html" target=&ldquo;blank&rdquo;>syntax reference</a>.
+</p>
+<h2>Basic invocation</h2>
+<p>After <a href="download.html" target=&ldquo;blank&rdquo;>installing</a>, render a single <code>.jemdoc</code> source file by
+running <code>jemdoc</code> on it:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc index.jemdoc
+</pre></div></div>
+<p>This produces <code>index.html</code> next to the source, using the default theme. You
+can drop the <code>.jemdoc</code> extension if you like — <code>jemdoc index</code> is equivalent.
+</p>
+<p>To render multiple files at once, list them all (or use a shell glob):
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc index.jemdoc publications.jemdoc teaching.jemdoc
+jemdoc *.jemdoc
+</pre></div></div>
+<h2>Choosing the output location</h2>
+<p>By default, <code>jemdoc foo.jemdoc</code> writes <code>foo.html</code> next to the source. The
+<code>-o</code> flag overrides this in two ways.
+</p>
+<p>To choose an explicit output filename:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc -o html/index.html index
+</pre></div></div>
+<p>To send output into a directory (filename is derived from the source):
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc -o build/ *.jemdoc
+</pre></div></div>
+<p>This produces <code>build<i>index.html</code>, <code>build</i>publications.html</code>, etc. The
+recommended layout for a multi-page site is to keep sources at the project
+root and rendered output in a <code>build<i></code> (or <code>html</i></code>) subdirectory; the latter
+is what you upload to (or have your webserver point at).
+</p>
+<h2>Modelines</h2>
+<p>The first line of a <code>.jemdoc</code> source file can be a <i>modeline</i>: a comment that
+configures jemdoc behaviour for that particular page. Modelines start with
+<code># jemdoc:</code> and contain comma-separated directives.
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+\# jemdoc: menu{MENU}{index.html}, nofooter, showsource
+\= My homepage
+...
+</pre></div></div>
+<p>The most useful directives:
+</p>
+<ul>
+<li><p><code>menu{MENU}{thispage.html}</code> — load the named menu file and highlight
+<code>thispage.html</code> as the current entry. Required if you want a sidebar.
+</p>
+</li>
+<li><p><code>nofooter</code> — suppress the &ldquo;page generated &hellip;&rdquo; footer.
+</p>
+</li>
+<li><p><code>nodate</code> / <code>notime</code> — keep the footer but drop the timestamp.
+</p>
+</li>
+<li><p><code>showsource</code> — add a <code>(source)</code> link to the footer pointing at the
+<code>.jemdoc</code> source file.
+</p>
+</li>
+<li><p><code>noeqs</code> — disable equation processing for this page (no KaTeX rendering,
+no fallback markers).
+</p>
+</li>
+<li><p><code>addcss{file1}{file2}&hellip;</code> — link extra stylesheets in addition to the
+default theme. The <code>.css</code> extension is added automatically if missing.
+</p>
+</li>
+<li><p><code>nodefaultcss</code> — do <i>not</i> link the default theme stylesheet. Combine with
+<code>addcss</code> to use only your own styles.
+</p>
+</li>
+<li><p><code>addjs{file1}{file2}&hellip;</code> — link extra javascript files.
+</p>
+</li>
+<li><p><code>analytics{UA-XXXXXX-X}</code> — emit a Google Analytics snippet.
+</p>
+</li>
+<li><p><code>title{Custom Window Title}</code> — set the <code>&lt;title&gt;</code> tag explicitly
+(otherwise it defaults to the page's H1).
+</p>
+</li>
+</ul>
+<p>See the <a href="modelines.html" target=&ldquo;blank&rdquo;>modelines page</a> for the exhaustive list with examples.
+</p>
+<h2>Themes</h2>
+<p>jemdoc-cvx ships two themes plus several variants, all in the <code>css/</code>
+directory of the release bundle (or the cloned repo).
+</p>
+<h3>Default: jemdoc-cvx</h3>
+<p>The default theme is <code>jemdoc-cvx.css</code>. It uses Source Serif 4 for body text
+and JetBrains Mono for code, both self-hosted as woff2 fonts shipped in the
+<code>fonts/</code> directory next to the stylesheet. To use it, copy both alongside
+your output html:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+cp /path/to/jemdoc-cvx-1.0.0/css/jemdoc-cvx.css build/
+cp -r /path/to/jemdoc-cvx-1.0.0/css/fonts build/
+</pre></div></div>
+<p>No further configuration is needed; jemdoc emits a <code>&lt;link&gt;</code> to
+<code>jemdoc-cvx.css</code> in the <code>&lt;head&gt;</code> of every page by default, and the
+stylesheet references <code>fonts/&hellip;</code> relatively.
+</p>
+<h3>Legacy: jemdoc</h3>
+<p>The original <code>jemdoc.css</code> is preserved for sites that want the historical
+look (Georgia body, monospace yellow highlight). To use it on a single page,
+add to the modeline:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+\# jemdoc: menu{MENU}{thispage.html}, nodefaultcss, addcss{jemdoc}
+</pre></div></div>
+<p>To use it across the whole site, override the <code>[defaultcss]</code> block in a
+conf file (see <a href="#config" target=&ldquo;blank&rdquo;>below</a>):
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+[defaultcss]
+&lt;link rel="stylesheet" href="jemdoc.css"&gt;
+</pre></div></div>
+<h3>Theme variants</h3>
+<p>A handful of small variants in <code>css/</code> tweak the legacy theme's palette:
+</p>
+<ul>
+<li><p><code>jacob.css</code> — Jacob Mattingley's personal style (as on the original
+jemdoc.jaboc.net).
+</p>
+</li>
+<li><p><code>white.css</code> — Verdana sans-serif, no menu border.
+</p>
+</li>
+<li><p><code>green.css</code> — green accents, white menu.
+</p>
+</li>
+<li><p><code>exp.css</code> — Verdana, lighter borders.
+</p>
+</li>
+<li><p><code>prob.css</code>, <code>page.css</code>, <code>nolines.css</code> — minor border/spacing tweaks.
+</p>
+</li>
+</ul>
+<p>These are meant to be <i>layered</i> on top of <code>jemdoc.css</code> (not used standalone),
+e.g. via <code>addcss{jemdoc}{jacob}</code> in the modeline.
+</p>
+<h3>Custom themes</h3>
+<p>The fastest path to a custom theme is to copy <code>jemdoc-cvx.css</code> (or
+<code>jemdoc.css</code>), edit the colours and fonts, and reference it via
+<code>nodefaultcss, addcss{your-theme}</code> on each page. The selectors are stable
+across themes: <code>
+</code>.infoblock<code>, </code>.imgtable<code>, </code>.eqwl<code>, </code>code<code>, </code>pre+, plus the heading and
+syntax-highlight classes.
+</p>
+<h2>Equations</h2>
+<p>Inline math is <code>$x^2 </code> 1$<code>; a paragraph that begins with </code>\(<code> and ends
+with </code>\)<code> becomes a centred display equation. Both are rendered to HTML at
+build time by the </code>katex+ CLI (if installed) and embedded inline; pages do
+<i>not</i> require any client-side javascript to view rendered math.
+</p>
+<p>If <code>katex</code> is not on <code>PATH</code>, jemdoc-cvx falls back to emitting raw <code>\(..\)</code>
+/ <code>\<a href="..\" target=&ldquo;blank&rdquo;>..\</a></code> delimiters that a client-side renderer (loaded via a conf
+override) can render in the browser. See <a href="latex.html" target=&ldquo;blank&rdquo;>latex equations</a> and
+the KaTeX install instructions on the <a href="download.html" target=&ldquo;blank&rdquo;>download page</a>.
+</p>
+<p>To skip equation processing entirely on a page (so <code>$</code> is treated as a
+literal dollar sign), add <code>noeqs</code> to the modeline.
+</p>
+<h2>Configuration files <a id="config"></a></h2>
+<p>For changes that go beyond modelines — replacing parts of the <code>&lt;head&gt;</code>,
+embedding analytics, restructuring the page layout — supply a <i>conf file</i>
+that overrides one or more named template blocks. Print the defaults with:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc --show-config
+</pre></div></div>
+<p>Each block is named (e.g. <code>[bodystart]</code>, <code>[menustart]</code>, <code>[katexcss]</code>).
+Copy the block(s) you want to change into a <code>mysite.conf</code> and pass it via
+<code>-c</code>:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc -c mysite.conf *.jemdoc
+</pre></div></div>
+<p>User-supplied conf blocks fully replace the default block of the same name;
+any block you don't override keeps its default. See the
+<a href="htmlchanges.html" target=&ldquo;blank&rdquo;>html changes page</a> for a worked example, including the
+list of blocks whose default content changed in jemdoc-cvx 1.0 (so that
+existing conf files written against pre-1.0 jemdoc may need a small update).
+</p>
+<h2>Other command-line options</h2>
+<p>To check the version and probe the platform / KaTeX install:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc --version
+</pre></div></div>
+<p>For brief command-line help (also printed when jemdoc is run without
+arguments):
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc --help
+</pre></div></div>
+<p>To dump the full default conf to stdout (useful as a starting point for
+your own <code>mysite.conf</code>):
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc --show-config
+</pre></div></div>
+<p>Command-line options can be combined freely:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc -c mysite.conf -o build/ *.jemdoc
+</pre></div></div>
+<h2>A simple Makefile</h2>
+<p>For an iterative workflow, drop a <code>Makefile</code> next to your sources so <code>make</code>
+rebuilds only the pages whose source changed:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+DOCS = index publications teaching cv
+HTML = $(addprefix build/, $(addsuffix .html, $(DOCS)))
+
+JEMDOC ?= /path/to/jemdoc-cvx-1.0.0/jemdoc
+
+.PHONY: all clean
+all: $(HTML) build/jemdoc-cvx.css build/fonts
+
+build/%.html: %.jemdoc MENU | build
+	$(JEMDOC) -o $@ $&lt;
+
+build/jemdoc-cvx.css: jemdoc-cvx.css | build
+	cp $&lt; $@
+
+build/fonts: fonts | build
+	rm -rf $@
+	cp -r $&lt; $@
+
+build:
+	mkdir -p build
+
+clean:
+	rm -rf build
+</pre></div></div>
+<p>Run <code>make</code> to build, <code>make clean</code> to wipe <code>build/</code>. Adjust <code>DOCS</code> as you
+add new pages.
+</p>
+<h2>Where to next?</h2>
+<p>The <a href="syntax.html" target=&ldquo;blank&rdquo;>syntax reference</a> documents the markup itself. The
+<a href="example.html" target=&ldquo;blank&rdquo;>example page</a> shows source and rendered output side by side.
+For advanced constructs (image blocks, raw html, file includes), see
+<a href="extra.html" target=&ldquo;blank&rdquo;>extra syntax</a>.
+</p>
+<div id="footer">
+<div id="footer-text">
+Page generated 2026-04-29 17:36:33 UTC, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

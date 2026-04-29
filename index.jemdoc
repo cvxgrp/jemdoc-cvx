@@ -1,0 +1,45 @@
+# jemdoc: menu{MENU}{index.html}, showsource
+= jemdoc-cvx -- light markup, modernized
+
+jemdoc is a light text-based markup language designed for creating
+websites, originally written by [http://stanford.edu/~jacobm/ Jacob Mattingley].
+It takes a text file written with [example.html jemdoc markup], an
+optional configuration file and an optional menu file, and emits a static
+website. jemdoc was inspired by [http://www.methods.co.nz/asciidoc/ AsciiDoc];
+the main differences are that jemdoc is simpler (deliberately feature-poor)
+and has more consistent syntax.
+
+This is *jemdoc-cvx*, a modernized fork of jemdoc and
+[https://github.com/wsshin/jemdoc_mathjax jemdoc\+MathJax]. The +.jemdoc+
+input format is unchanged and the iconic look is preserved, but the tool
+itself is rewritten for a modern stack: HTML5 output, CSS3, Python 3.11\+,
+and server-side equation rendering with [https://katex.org/ KaTeX]. See
+the [download.html download page] to get started or the
+[revision.html revision notes] for what changed.
+
+[https://github.com/cvxgrp/jemdoc-cvx Contribute to jemdoc-cvx on GitHub.]
+
+== Goals
+- Simple, consistent syntax.
+- $\LaTeX$ [latex.html equation support], rendered server-side.
+- [tables.html Table support].
+- Portability. A single executable +jemdoc+ script (Python stdlib only) \+
+  a single CSS file \+ your input file {{&rarr;}} html.
+- Based on [http://www.w3.org/Style/CSS/ CSS] so formatting specifics are
+  independent of jemdoc.
+- Clean, valid HTML5 output.
+- Minimal bells and whistles, with a raw-html fallback for edge cases.
+
+== License
+Copyright \C 2007--2012 Jacob Mattingley. KaTeX/HTML5 modernization
+copyright \C 2026 Stanford University Convex Optimization Group.
+
+jemdoc is free software; you can redistribute it and\/or modify it under the
+terms of the [http://www.gnu.org/licenses/gpl-3.0.html GNU General Public
+License] as published by the Free Software Foundation; either version 3 of the
+License, or (at your option) any later version.
+
+jemdoc is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the [http://www.gnu.org/licenses/gpl-3.0.html GNU
+General Public License] for more details.

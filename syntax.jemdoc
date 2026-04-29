@@ -1,0 +1,128 @@
+# jemdoc: menu{MENU}{syntax.html}
+= jemdoc-cvx -- syntax reference
+
+A systematic guide to the markup. Each section shows the syntax and its
+rendered effect. For a worked end-to-end example with rendered output and
+prose alongside the source, see the [example.html example page]; for advanced
+constructs (image blocks, file includes, raw blocks), see [extra.html extra
+syntax].
+
+== Inline formatting
+
+- /\/italics\// renders as /italics/
+- *\*bold\** renders as *bold*
+- +\+monospace\++ renders as +monospace+
+- _\_underline\__ renders as _underline_
+- "doubly quoted text" is written +\"doubly quoted text\"+
+- `singly quoted text' is written +\`singly quoted text\'+
+- jemdoc's apostrophes are converted automatically from +jemdoc\'s+ input
+
+Punctuation and special characters:
+
+- +\-+ is a hyphen (-)
+- +\-\-+ is an en-dash (--)
+- +\-\-\-+ is an em-dash (---)
+- +\.\.\.+ is an ellipsis (...)
+- +\~+ is a non-breaking space (~)
+- +\\C+, +\\R+, +\\M+ are \C, \R, \M
+- +\#+ begins a comment, for the remainder of the line
+- the sequence +\\n+ \n forces a manual line break
+- paragraphs are separated by blank lines
+
+Equations:
+
+- +\$inline LaTeX equation\$+
+- +\\( LaTeX equation on its own line \\)+
+
+URLs containing +\#+ must escape the +\#+ as +\\#+.
+
+== Headings
+
+Headings start a line with +=+. More +=+ signs nest deeper:
+
+- += Heading level 1+
+- +== Heading level 2+, /etc./
+
+== Lists
+
+Lists are introduced with +-+ for bulleted, +.+ for numbered, and +:+ for
+definition lists. Indenting and doubling the marker creates nested lists:
+
+~~~
+{}{}
+- Bullet level one
+    -- Bullet level two
+
+. Number level one
+    .. Number level two
+    .. Number level two (again)
+
+: {jemdoc} light markup
+: {asciidoc} a great alternative, but more complicated
+~~~
+
+renders as
+
+~~~
+- Bullet level one
+    -- Bullet level two
+
+. Number level one
+    .. Number level two
+    .. Number level two (again)
+
+: {jemdoc} light markup
+: {asciidoc} a great alternative, but more complicated
+~~~
+
+== Code and info blocks
+
+Blocks are fenced with three tildes (+\~~~+). The first +{title}+ is an
+optional title shown above the block; the second +{lang}+ is an optional
+syntax-highlighter hint (+python+, +c+, +sh+, +matlab+, +ruby+, +cpp+,
++jemdoc+, +commented+, ...).
+
+~~~
+{Code block syntax}{}
+\~~~
+\{Optionally empty title}{Optionally empty highlight mode}
+Code block with monospaced text.
+\~~~
+~~~
+
+If you omit the second pair of braces in the first line of the block (or
+omit the whole first line altogether), you get an /information block/ instead:
+
+~~~
+{Information block}
+Inside an information block, all the usual jemdoc inline syntax still works.
+~~~
+
+== Inline html escaping
+
+- +\{\{html text\}\}+ inserts +html text+ directly into the output
+without performing any substitutions. Use this for small inline html.
+- For larger amounts of raw html, prefer a [extra.html raw block]
+which avoids stray +<p>+ tags.
+- +\%quoted tt\%+ is an alias for +\+{\{quoted tt\}\}\++. It is a little
+less robust; prefer +\+{\{plus signs with double brace blocks}\}\++ if you
+hit edge cases with special characters.
+- +{\\{text}\\}+ /will/ perform replacements and insert {\{text}\}.
+
+== Preventing matches
+
+To stop jemdoc from interpreting markup characters, prefix them with a
+backslash:
+
+- a literal backslash (\\) is written +{{\\\\}}+
+- the literal characters \/, \*, \+, \~ and \# are written +\\/+, +\\*+,
+  +\\\++, +\\\~+ and +\\\#+
+- +\\\...+ avoids an ellipsis
+- +-\\-+ avoids an en-dash
+- +-\\-\\-+ avoids an em-dash
+- +\\\`+ gives a back-tick (\`)
+- +\\\'+ gives an ordinary single quotation mark (\')
+- +\\\"+ gives an ordinary double quotation mark (\")
+
+This page covers the common cases; for image blocks, file includes, and
+other less-frequently-used constructs, see [extra.html extra syntax].

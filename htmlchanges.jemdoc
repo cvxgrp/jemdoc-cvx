@@ -1,0 +1,112 @@
+# jemdoc: menu{MENU}{htmlchanges.html}
+= jemdoc -- html changes
+
+jemdoc has a built-in default configuration. This configuration includes the
+particular html tags used when producing html. If you wish to adjust the html
+that jemdoc produces, you can provide a configuration file to override the
+built-in defaults.
+
+== Example html change
+Suppose you wanted to add [http://www.google.com/analytics/ Google
+Analytics] tracking to your website. That requires adding a short section of
+html before the +</body>+ tag.
+
+First, find out which block needs to be changed by using
+
+~~~
+{}{}
+jemdoc --show-config
+~~~
+
+This prints the default html configuration. From this, the relevant
+configuration block (the one which includes the +</body>+ tag) has a title
++\[bodyend\]+, and looks like
+
+~~~
+{}{}
+[bodyend]
+</body>
+</html>
+~~~
+
+Create a new file +mysite.conf+, say, and put a new +\[bodyend\]+ block
+inside it. The new file looks like this:
+
+~~~
+{}{}
+[bodyend]
+<script src="http://www.google-analytics.com/urchin.js" type="text/javascript">
+</script>
+<script type="text/javascript">
+_uacct = "UA-0000000-0";
+urchinTracker();
+</script>
+</body>
+</html>
+~~~
+
+Include your new configuration file, with the +-c+ option ([using.html more
+details here]):
+~~~
+{}{}
+jemdoc -c mysite.conf index.jemdoc
+~~~
+
+This will pull in the new +\[bodyend\]+ block from +mysite.conf+, but otherwise
+work as before.
+
+== Migrating from pre-1.0 jemdoc
+
+jemdoc-cvx 1.0 modernizes the default html templates. The block /names/ are
+unchanged, but their contents now emit HTML5. If your +mysite.conf+ overrides
++\[firstbit\]+, +\[bodystart\]+, +\[menustart\]+, +\[menuend\]+,
++\[menulastbit\]+, +\[nomenu\]+, or +\[nomenulastbit\]+ from the pre-1.0 defaults,
+update your overrides to match the new templates:
+
+- +\[firstbit\]+ now emits +<\!DOCTYPE html>+ and +<html lang="en">+ instead of
+the XHTML 1.1 doctype and +xmlns+ namespace, with +<meta charset="utf-8">+
+in place of +<meta http-equiv="Content-Type">+.
+- +\[menustart\]+/+\[menuend\]+/+\[menulastbit\]+ now use a +<div id="tlayout">+
+with +<nav id="layout-menu">+ and +<main id="layout-content">+ instead of
++<table id="tlayout"><tr valign="top"><td>+ for layout. The css selectors
++#tlayout+, +#layout-menu+, and +#layout-content+ are unchanged, but
++#layout-menu td+ is gone.
+- Inline +monospace+ now emits +<code>+ instead of the obsolete +<tt>+. The
++\[codeblockcontenttt\]+ and +\[codeblockendtt\]+ blocks emit +<code class="tthl">+
+in place of +<tt class="tthl">+. Update any custom css selectors that targeted
++tt+.
+- +<br />+, +<img ... />+, +<meta ... />+ and +<link ... />+ are emitted
+without the trailing slash (HTML5).
+
+If your conf does not override these blocks, no changes are needed.
+
+== Theme: jemdoc-cvx vs. legacy jemdoc
+
+jemdoc-cvx 1.0 ships with a new default stylesheet, +jemdoc-cvx.css+. It
+preserves the same selectors and overall layout as the original
++jemdoc.css+, but updates the typography (Source Serif 4 for body,
+JetBrains Mono for code, both self-hosted as woff2) and softens the
+palette: warm off-white background, muted slate-blue headings and links,
+and a cool light-gray inline-code background instead of the original
+yellow.
+
+The legacy +jemdoc.css+ is still shipped in the +css\/+ directory and
+remains fully functional. To opt back into the original look on a single
+page, add the modeline:
+
+~~~
+{}{}
+\# jemdoc: nodefaultcss, addcss{jemdoc}
+~~~
+
+To switch your whole site back, override +\[defaultcss\]+ in your conf:
+
+~~~
+{}{}
+[defaultcss]
+<link rel="stylesheet" href="jemdoc.css">
+~~~
+
+If you self-host the new theme, copy both +jemdoc-cvx.css+ and the
++fonts\/+ directory (three woff2 files) next to your output html. The
+stylesheet references the fonts by relative path.

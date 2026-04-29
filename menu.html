@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="generator" content="jemdoc, see https://www.cvxgrp.org/jemdoc-cvx/index.html">
+<link rel="stylesheet" href="jemdoc-cvx.css">
+<title>jemdoc &ndash; add a menu</title>
+</head>
+<body>
+<script>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-2725246-3']);
+_gaq.push(['_trackPageview']);
+(function() {
+ var ga = document.createElement('script'); ga.async = true;
+ ga.src = ('https:' == document.location.protocol ? 'https://ssl'
+   : 'http://www') + '.google-analytics.com/ga.js';
+ var s = document.getElementsByTagName('script')[0];
+ s.parentNode.insertBefore(ga, s);
+ })();
+</script>
+<div id="tlayout">
+<nav id="layout-menu">
+<div class="menu-category">jemdoc</div>
+<div class="menu-item"><a href="index.html">home</a></div>
+<div class="menu-item"><a href="download.html">download</a></div>
+<div class="menu-item"><a href="revision.html">version/bug&nbsp;info</a></div>
+<div class="menu-item"><a href="contact.html">contact</a></div>
+<div class="menu-category">user's guide</div>
+<div class="menu-item"><a href="using.html">running&nbsp;jemdoc</a></div>
+<div class="menu-item"><a href="syntax.html">syntax</a></div>
+<div class="menu-item"><a href="example.html">example&nbsp;page</a></div>
+<div class="menu-item"><a href="extra.html">extra&nbsp;syntax</a></div>
+<div class="menu-category">configuration</div>
+<div class="menu-item"><a href="htmlchanges.html">html&nbsp;changes</a></div>
+<div class="menu-item"><a href="menu.html" class="current">adding&nbsp;a&nbsp;menu</a></div>
+<div class="menu-item"><a href="modelines.html">modelines</a></div>
+<div class="menu-category">goodies</div>
+<div class="menu-item"><a href="stuff.html">vim,&nbsp;make</a></div>
+<div class="menu-item"><a href="latex.html">latex&nbsp;equations</a></div>
+<div class="menu-item"><a href="tables.html">tables</a></div>
+</nav>
+<main id="layout-content">
+<div id="toptitle">
+<h1>jemdoc &ndash; add a menu</h1>
+</div>
+<p>jemdoc provides an easy way to add a &lsquo;menu&rsquo; like the one you see at the left of
+this page. You should create a file called <code>MENU</code>, for example, in the current
+directory. This website's <code>MENU</code> looks something like this:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc
+    home                [index.html]
+    download            [download.html]
+    revision history    [revision.html]
+    contact             [contact.html]
+
+user's guide
+    using               [using.html]
+    syntax              [syntax.html]
+
+goodies
+    add a menu          [menu.html]
+    other stuff         [stuff.html]
+</pre></div></div>
+<p>To use the menu, start the first line of <i>each</i> source file with a special
+comment like this one:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+# jemdoc: menu{MENU}{index.html}
+</pre></div></div>
+<p>(Replace <code>index.html</code> with the name of the relevant html page.) This will add a
+menu from the file called <code>MENU</code>, and underline and darken the menu entry
+corresponding to <code>index.html</code>.
+</p>
+<h2>Relative paths</h2>
+<p>Optionally, include a <code>prefix</code> which instructs jemdoc where the root of the menu
+is located relative to a particular page.
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+# jemdoc: menu{MENU}{pageinsubdir.html}{prefix}
+</pre></div></div>
+<h2>A note on menu widths</h2>
+<p>jemdoc will create menu entries that do not wrap. If you have a particularly
+long title, or menu item, insert manual linebreaks using <code>\</code><code>n</code> in your
+MENU file. Multi-line menu items will (by default) have their second and
+subsequent lines slightly indented.
+</p>
+<div id="footer">
+<div id="footer-text">
+Page generated 2026-04-29 17:36:33 UTC, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

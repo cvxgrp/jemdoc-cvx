@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="generator" content="jemdoc, see https://www.cvxgrp.org/jemdoc-cvx/index.html">
+<link rel="stylesheet" href="jemdoc-cvx.css">
+<title>jemdoc-cvx &ndash; version and bug information</title>
+</head>
+<body>
+<script>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-2725246-3']);
+_gaq.push(['_trackPageview']);
+(function() {
+ var ga = document.createElement('script'); ga.async = true;
+ ga.src = ('https:' == document.location.protocol ? 'https://ssl'
+   : 'http://www') + '.google-analytics.com/ga.js';
+ var s = document.getElementsByTagName('script')[0];
+ s.parentNode.insertBefore(ga, s);
+ })();
+</script>
+<div id="tlayout">
+<nav id="layout-menu">
+<div class="menu-category">jemdoc</div>
+<div class="menu-item"><a href="index.html">home</a></div>
+<div class="menu-item"><a href="download.html">download</a></div>
+<div class="menu-item"><a href="revision.html" class="current">version/bug&nbsp;info</a></div>
+<div class="menu-item"><a href="contact.html">contact</a></div>
+<div class="menu-category">user's guide</div>
+<div class="menu-item"><a href="using.html">running&nbsp;jemdoc</a></div>
+<div class="menu-item"><a href="syntax.html">syntax</a></div>
+<div class="menu-item"><a href="example.html">example&nbsp;page</a></div>
+<div class="menu-item"><a href="extra.html">extra&nbsp;syntax</a></div>
+<div class="menu-category">configuration</div>
+<div class="menu-item"><a href="htmlchanges.html">html&nbsp;changes</a></div>
+<div class="menu-item"><a href="menu.html">adding&nbsp;a&nbsp;menu</a></div>
+<div class="menu-item"><a href="modelines.html">modelines</a></div>
+<div class="menu-category">goodies</div>
+<div class="menu-item"><a href="stuff.html">vim,&nbsp;make</a></div>
+<div class="menu-item"><a href="latex.html">latex&nbsp;equations</a></div>
+<div class="menu-item"><a href="tables.html">tables</a></div>
+</nav>
+<main id="layout-content">
+<div id="toptitle">
+<h1>jemdoc-cvx &ndash; version and bug information</h1>
+</div>
+<h2>Open issues</h2>
+<ul>
+<li><p>Including <code>#</code> within a <code>{{quoted block}}</code> will fail. Use a <code>raw</code>
+block or place the <code>#</code> outside, e.g. <code>{{a&nbsp;}}\#{{2}}</code>, as a workaround.
+</p>
+</li>
+<li><p>An extra blank line at the end of the source may be required if the file
+ends with a raw quoted section like <code>{{&lt;/asdasd&gt;}}</code> or with an equation.
+</p>
+</li>
+<li><p>KaTeX does not implement every LaTeX construct. <code>\label</code> / <code>\eqref</code> and
+some <code>amsmath</code> environments render with a small red error indicator. See
+<a href="latex.html" target=&ldquo;blank&rdquo;>the latex page</a> for details.
+</p>
+</li>
+</ul>
+<h2>jemdoc-cvx 1.0 (2026)</h2>
+<p>This release modernizes the tool while preserving the <code>.jemdoc</code> input format
+and the iconic visual look of generated pages.
+</p>
+<ol>
+<li><p>Output is now valid <b>HTML5</b> (no XHTML 1.1 doctype, no <code>xmlns</code>, no XML
+self-closing on void elements; <code>&lt;meta charset=&ldquo;utf-8&rdquo;&gt;</code>; HTML5 default
+<code>type=</code> values dropped from <code>&lt;link&gt;</code> / <code>&lt;script&gt;</code>).
+</p>
+</li>
+<li><p>Page layout uses semantic <code>&lt;nav&gt;</code> and <code>&lt;main&gt;</code> elements inside a CSS-grid
+<code>&lt;div id=&ldquo;tlayout&rdquo;&gt;</code> instead of a layout <code>&lt;table&gt;</code>. Inline <code>monospace</code>
+emits <code>&lt;code&gt;</code> instead of the obsolete <code>&lt;tt&gt;</code>. See
+<a href="htmlchanges.html" target=&ldquo;blank&rdquo;>html changes</a> for the conf-block migration note.
+</p>
+</li>
+<li><p><b>Equations are rendered server-side at build time</b> via the
+<a href="https://katex.org/" target=&ldquo;blank&rdquo;>KaTeX</a> CLI; output HTML is embedded inline and pages
+no longer need a client-side script tag for math. The legacy LaTeX/dvipng
+PNG-rendering path (<code>geneq</code>) and its <code>addpackage</code>, <code>addtex</code>, <code>eqsize</code>, and
+<code>eqdir</code> modelines have been removed&#8201;&mdash;&#8201;they were broken on Python 3 and
+unused in MathJax mode.
+</p>
+</li>
+<li><p><b>Python 3.11+ only.</b> All Python 2 compatibility scaffolding is gone, the
+vendored <code>latexmath2png.py</code> helper is deleted, regex literals are now raw
+strings (no more <code>SyntaxWarning</code>), and subprocess calls drop <code>shell=True</code>
+except for the one user-supplied codeblock filter.
+</p>
+</li>
+<li><p><b>Repo plumbing.</b> <code>pyproject.toml</code>, <code>pytest</code> regression fixtures, <code>ruff</code>
+lint, <code>uv</code>-managed dev environment, and a portable <code>Makefile</code> that no
+longer hard-codes the original maintainer's home directory.
+</p>
+</li>
+</ol>
+<h2>Earlier history</h2>
+<p>Version history before 1.0 (the original jemdoc 0.1&ndash;0.7.3 by Jacob
+Mattingley, then jemdoc+MathJax by Wonseok Shin) is preserved in the git
+log of this repository. See
+<a href="https://github.com/cvxgrp/jemdoc-cvx/commits" target=&ldquo;blank&rdquo;>the GitHub commit history</a>
+or run <code>git log &ndash;reverse</code> in a clone.
+</p>
+<div id="footer">
+<div id="footer-text">
+Page generated 2026-04-29 17:36:33 UTC, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

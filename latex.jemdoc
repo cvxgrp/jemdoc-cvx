@@ -1,0 +1,67 @@
+# jemdoc: menu{MENU}{latex.html}, showsource
+= jemdoc -- latex equations
+
+jemdoc-cvx renders equations server-side with [https://katex.org/ KaTeX] at
+build time. LaTeX source embedded in a jemdoc file is piped through the
++katex+ CLI, and the resulting HTML is embedded directly in the page---no
+client-side JavaScript is required to view rendered math.
+
+~~~
+KaTeX supports a large subset of LaTeX but not everything MathJax does. Cross-
+referencing macros (+\\label+, +\\eqref+) and some +amsmath+ constructs are
+unsupported and render with a small red error indicator. Adjust the input or
+load a client-side renderer via a conf override if you need full MathJax
+features.
+~~~
+
+== Inline equations
+The conjugate function $f^\star(y) = \sup_{x \in X}(y^Tx - f(x))$ appears here
+inline, and is in the variable $y$. Dollar signs (+\$+) surround the LaTeX
+equation in the jemdoc source.
+
+~~~
+{Syntax}{}
+The sample function $f^\star(y) = \sup_{x \in X}(y^Tx - f(x))$
+appears here inline, and is in the variable $y$.
+~~~
+
+== Equations on separate lines
+To render an equation on its own line, use backslash-escaped round brackets
+(+\\(+ and +\\)+). For example, the identity
+\(
+(I + XY)^{-1} = I - X(I + YX)^{-1}Y
+\)
+is typeset on its own line. Yes, round brackets instead of square
+brackets---this is to avoid a conflict with ordinary square brackets that are
+escaped to avoid being a link.  Sorry.
+
+~~~
+{Syntax}{}
+The identity
+\(
+    (I \+ XY)^{-1} = I - X(I \+ YX)^{-1}Y
+\)
+is typeset on its own line.
+~~~
+
+Here, the line breaks (and other whitespace) are ignored. As always, the exact
+formatting details can be adjusted using CSS.
+
+== Notes
+- The baseline is carefully adjusted. The sequences m$m$m and y$y$y (+m\$m\$m+
+  and +y\$y\$y+), for example, should be neatly aligned (modulo bad browsers).
+- Definition by cases will work as expected, for example, $f(x)$, where
+  \(
+  f(x) = \left\{
+  \begin{array}{ll}
+  3, & x \leq 0 \\
+  5, & x > 0. \\
+  \end{array}\right.
+  \)
+  (You can view the [latex.jemdoc jemdoc source] for this page.)
+- A random inequality might look like $3x + 2y^{4k + 6} \geq z$.
+- KaTeX-rendered output is cached by content hash in +katexcache/+ next to the
+  source, so the second build of a page is fast.
+- The +# jemdoc: noeqs+ modeline disables KaTeX rendering for a page; \+\$..\$\+
+  and \+\\(..\\)\+ pass through unchanged. See the [modelines.html modelines]
+  page.

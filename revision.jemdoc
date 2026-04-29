@@ -1,0 +1,43 @@
+# jemdoc: menu{MENU}{revision.html}
+= jemdoc-cvx -- version and bug information
+
+== Open issues
+- Including +\#+ within a +{\{quoted block}}+ will fail. Use a +raw+
+  block or place the +\#+ outside, e.g. +{\{a~}}\\\#{\{2}}+, as a workaround.
+- An extra blank line at the end of the source may be required if the file
+  ends with a raw quoted section like +{\{<\/asdasd>}\}+ or with an equation.
+- KaTeX does not implement every LaTeX construct. +\\label+ / +\\eqref+ and
+  some +amsmath+ environments render with a small red error indicator. See
+  [latex.html the latex page] for details.
+
+== jemdoc-cvx 1.0 (2026)
+This release modernizes the tool while preserving the +.jemdoc+ input format
+and the iconic visual look of generated pages.
+
+. Output is now valid *HTML5* (no XHTML 1.1 doctype, no +xmlns+, no XML
+  self-closing on void elements; +<meta charset="utf-8">+; HTML5 default
+  +type=+ values dropped from +<link>+ / +<script>+).
+. Page layout uses semantic +<nav>+ and +<main>+ elements inside a CSS-grid
+  +<div id="tlayout">+ instead of a layout +<table>+. Inline +monospace+
+  emits +<code>+ instead of the obsolete +<tt>+. See
+  [htmlchanges.html html changes] for the conf-block migration note.
+. *Equations are rendered server-side at build time* via the
+  [https://katex.org/ KaTeX] CLI; output HTML is embedded inline and pages
+  no longer need a client-side script tag for math. The legacy LaTeX/dvipng
+  PNG-rendering path (+geneq+) and its +addpackage+, +addtex+, +eqsize+, and
+  +eqdir+ modelines have been removed---they were broken on Python 3 and
+  unused in MathJax mode.
+. *Python 3.11\+ only.* All Python 2 compatibility scaffolding is gone, the
+  vendored +latexmath2png.py+ helper is deleted, regex literals are now raw
+  strings (no more +SyntaxWarning+), and subprocess calls drop +shell=True+
+  except for the one user-supplied codeblock filter.
+. *Repo plumbing.* +pyproject.toml+, +pytest+ regression fixtures, +ruff+
+  lint, +uv+-managed dev environment, and a portable +Makefile+ that no
+  longer hard-codes the original maintainer's home directory.
+
+== Earlier history
+Version history before 1.0 (the original jemdoc 0.1--0.7.3 by Jacob
+Mattingley, then jemdoc\+MathJax by Wonseok Shin) is preserved in the git
+log of this repository. See
+[https://github.com/cvxgrp/jemdoc-cvx/commits the GitHub commit history]
+or run +git log --reverse+ in a clone.

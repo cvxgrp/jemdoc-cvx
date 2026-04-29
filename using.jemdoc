@@ -1,0 +1,265 @@
+# jemdoc: menu{MENU}{using.html}
+= jemdoc-cvx -- running jemdoc
+
+This page covers everything about /using/ the +jemdoc+ tool: invocation,
+command-line options, modelines, themes, and a recommended workflow. For
+the markup language itself, see the [syntax.html syntax reference].
+
+== Basic invocation
+
+After [download.html installing], render a single +.jemdoc+ source file by
+running +jemdoc+ on it:
+
+~~~
+{}{}
+jemdoc index.jemdoc
+~~~
+
+This produces +index.html+ next to the source, using the default theme. You
+can drop the +.jemdoc+ extension if you like — +jemdoc index+ is equivalent.
+
+To render multiple files at once, list them all (or use a shell glob):
+
+~~~
+{}{}
+jemdoc index.jemdoc publications.jemdoc teaching.jemdoc
+jemdoc *.jemdoc
+~~~
+
+== Choosing the output location
+
+By default, +jemdoc foo.jemdoc+ writes +foo.html+ next to the source. The
++-o+ flag overrides this in two ways.
+
+To choose an explicit output filename:
+
+~~~
+{}{}
+jemdoc -o html/index.html index
+~~~
+
+To send output into a directory (filename is derived from the source):
+
+~~~
+{}{}
+jemdoc -o build/ *.jemdoc
+~~~
+
+This produces +build/index.html+, +build/publications.html+, etc. The
+recommended layout for a multi-page site is to keep sources at the project
+root and rendered output in a +build/+ (or +html/+) subdirectory; the latter
+is what you upload to (or have your webserver point at).
+
+== Modelines
+
+The first line of a +.jemdoc+ source file can be a /modeline/: a comment that
+configures jemdoc behaviour for that particular page. Modelines start with
++\# jemdoc:+ and contain comma-separated directives.
+
+~~~
+{}{}
+\# jemdoc: menu{MENU}{index.html}, nofooter, showsource
+\= My homepage
+...
+~~~
+
+The most useful directives:
+
+- +menu\{MENU\}\{thispage.html\}+ — load the named menu file and highlight
+  +thispage.html+ as the current entry. Required if you want a sidebar.
+- +nofooter+ — suppress the "page generated ..." footer.
+- +nodate+ / +notime+ — keep the footer but drop the timestamp.
+- +showsource+ — add a +(source)+ link to the footer pointing at the
+  +.jemdoc+ source file.
+- +noeqs+ — disable equation processing for this page (no KaTeX rendering,
+  no fallback markers).
+- +addcss\{file1\}\{file2\}...+ — link extra stylesheets in addition to the
+  default theme. The +.css+ extension is added automatically if missing.
+- +nodefaultcss+ — do /not/ link the default theme stylesheet. Combine with
+  +addcss+ to use only your own styles.
+- +addjs\{file1\}\{file2\}...+ — link extra javascript files.
+- +analytics\{UA-XXXXXX-X\}+ — emit a Google Analytics snippet.
+- +title\{Custom Window Title\}+ — set the +<title>+ tag explicitly
+  (otherwise it defaults to the page's H1).
+
+See the [modelines.html modelines page] for the exhaustive list with examples.
+
+== Themes
+
+jemdoc-cvx ships two themes plus several variants, all in the +css/+
+directory of the release bundle (or the cloned repo).
+
+=== Default: jemdoc-cvx
+
+The default theme is +jemdoc-cvx.css+. It uses Source Serif 4 for body text
+and JetBrains Mono for code, both self-hosted as woff2 fonts shipped in the
++fonts/+ directory next to the stylesheet. To use it, copy both alongside
+your output html:
+
+~~~
+{}{}
+cp /path/to/jemdoc-cvx-1.0.0/css/jemdoc-cvx.css build/
+cp -r /path/to/jemdoc-cvx-1.0.0/css/fonts build/
+~~~
+
+No further configuration is needed; jemdoc emits a +<link>+ to
++jemdoc-cvx.css+ in the +<head>+ of every page by default, and the
+stylesheet references +fonts/...+ relatively.
+
+=== Legacy: jemdoc
+
+The original +jemdoc.css+ is preserved for sites that want the historical
+look (Georgia body, monospace yellow highlight). To use it on a single page,
+add to the modeline:
+
+~~~
+{}{}
+\# jemdoc: menu{MENU}{thispage.html}, nodefaultcss, addcss{jemdoc}
+~~~
+
+To use it across the whole site, override the +\[defaultcss\]+ block in a
+conf file (see [\#config below]):
+
+~~~
+{}{}
+[defaultcss]
+<link rel="stylesheet" href="jemdoc.css">
+~~~
+
+=== Theme variants
+
+A handful of small variants in +css/+ tweak the legacy theme's palette:
+
+- +jacob.css+ — Jacob Mattingley's personal style (as on the original
+  jemdoc.jaboc.net).
+- +white.css+ — Verdana sans-serif, no menu border.
+- +green.css+ — green accents, white menu.
+- +exp.css+ — Verdana, lighter borders.
+- +prob.css+, +page.css+, +nolines.css+ — minor border/spacing tweaks.
+
+These are meant to be /layered/ on top of +jemdoc.css+ (not used standalone),
+e.g. via +addcss\{jemdoc\}\{jacob\}+ in the modeline.
+
+=== Custom themes
+
+The fastest path to a custom theme is to copy +jemdoc-cvx.css+ (or
++jemdoc.css+), edit the colours and fonts, and reference it via
++nodefaultcss, addcss\{your-theme\}+ on each page. The selectors are stable
+across themes: +#tlayout+, +#layout-menu+, +#layout-content+, +.codeblock+,
++.infoblock+, +.imgtable+, +.eqwl+, +code+, +pre+, plus the heading and
+syntax-highlight classes.
+
+== Equations
+
+Inline math is +\$x^2 + 1\$+; a paragraph that begins with +\\(+ and ends
+with +\\)+ becomes a centred display equation. Both are rendered to HTML at
+build time by the +katex+ CLI (if installed) and embedded inline; pages do
+/not/ require any client-side javascript to view rendered math.
+
+If +katex+ is not on +PATH+, jemdoc-cvx falls back to emitting raw +\\(..\\)+
+/ +\\[..\\]+ delimiters that a client-side renderer (loaded via a conf
+override) can render in the browser. See [latex.html latex equations] and
+the KaTeX install instructions on the [download.html download page].
+
+To skip equation processing entirely on a page (so +\$+ is treated as a
+literal dollar sign), add +noeqs+ to the modeline.
+
+== Configuration files {{<a id="config"></a>}}
+
+For changes that go beyond modelines — replacing parts of the +<head>+,
+embedding analytics, restructuring the page layout — supply a /conf file/
+that overrides one or more named template blocks. Print the defaults with:
+
+~~~
+{}{}
+jemdoc --show-config
+~~~
+
+Each block is named (e.g. +\[bodystart\]+, +\[menustart\]+, +\[katexcss\]+).
+Copy the block(s) you want to change into a +mysite.conf+ and pass it via
++-c+:
+
+~~~
+{}{}
+jemdoc -c mysite.conf *.jemdoc
+~~~
+
+User-supplied conf blocks fully replace the default block of the same name;
+any block you don't override keeps its default. See the
+[htmlchanges.html html changes page] for a worked example, including the
+list of blocks whose default content changed in jemdoc-cvx 1.0 (so that
+existing conf files written against pre-1.0 jemdoc may need a small update).
+
+== Other command-line options
+
+To check the version and probe the platform / KaTeX install:
+
+~~~
+{}{}
+jemdoc --version
+~~~
+
+For brief command-line help (also printed when jemdoc is run without
+arguments):
+
+~~~
+{}{}
+jemdoc --help
+~~~
+
+To dump the full default conf to stdout (useful as a starting point for
+your own +mysite.conf+):
+
+~~~
+{}{}
+jemdoc --show-config
+~~~
+
+Command-line options can be combined freely:
+
+~~~
+{}{}
+jemdoc -c mysite.conf -o build/ *.jemdoc
+~~~
+
+== A simple Makefile
+
+For an iterative workflow, drop a +Makefile+ next to your sources so +make+
+rebuilds only the pages whose source changed:
+
+~~~
+{}{}
+DOCS = index publications teaching cv
+HTML = $(addprefix build/, $(addsuffix .html, $(DOCS)))
+
+JEMDOC ?= /path/to/jemdoc-cvx-1.0.0/jemdoc
+
+.PHONY: all clean
+all: $(HTML) build/jemdoc-cvx.css build/fonts
+
+build/%.html: %.jemdoc MENU | build
+	$(JEMDOC) -o $@ $<
+
+build/jemdoc-cvx.css: jemdoc-cvx.css | build
+	cp $< $@
+
+build/fonts: fonts | build
+	rm -rf $@
+	cp -r $< $@
+
+build:
+	mkdir -p build
+
+clean:
+	rm -rf build
+~~~
+
+Run +make+ to build, +make clean+ to wipe +build/+. Adjust +DOCS+ as you
+add new pages.
+
+== Where to next?
+
+The [syntax.html syntax reference] documents the markup itself. The
+[example.html example page] shows source and rendered output side by side.
+For advanced constructs (image blocks, raw html, file includes), see
+[extra.html extra syntax].
