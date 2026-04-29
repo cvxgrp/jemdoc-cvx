@@ -1,6 +1,6 @@
 {
   "name": "jemdoc-cvx-katex",
-  "version": "0.8.0",
+  "version": "1.0.0",
   "description": "Pinned KaTeX dependency for jemdoc-cvx server-side equation rendering.",
   "private": true,
   "dependencies": {

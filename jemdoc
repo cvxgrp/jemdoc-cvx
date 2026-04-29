@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""jemdoc-cvx version 0.8.0, modernized fork of jemdoc+MathJax (Python 3.11+)."""
+"""jemdoc-cvx version 1.0.0, modernized fork of jemdoc+MathJax (Python 3.11+)."""
 
 # Copyright (C) 2007-2012 Jacob Mattingley (jacobm@stanford.edu).
 #

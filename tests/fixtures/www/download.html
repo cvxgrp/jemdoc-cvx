@@ -5,7 +5,7 @@
 <meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/">
 <link rel="stylesheet" href="jemdoc.css">
 <link rel="stylesheet" href="jacob.css">
-<title>jemdoc &ndash; download</title>
+<title>jemdoc-cvx &ndash; download</title>
 </head>
 <body>
 <script>
@@ -43,36 +43,48 @@ _gaq.push(['_trackPageview']);
 </nav>
 <main id="layout-content">
 <div id="toptitle">
-<h1>jemdoc &ndash; download</h1>
+<h1>jemdoc-cvx &ndash; download</h1>
 </div>
-<p>Here is <a href="dist/jemdoc.py"
-onclick="javascript:urchinTracker('/downloads/jemdoc.py');">jemdoc.py</a>
-(<code>v0.7.3</code>). You can also download this <a href="dist/jemdoc.css" target=&ldquo;blank&rdquo;>example css
-file</a> to get you started. You can easily modify the css to adjust colours, fonts
-and general layout elements to your taste. 
+<p>jemdoc-cvx is distributed as source on GitHub:
 </p>
-<p>You may like to <code>sudo cp jemdoc.py /usr/bin/jemdoc</code>
-so that you can just type
-<code>jemdoc</code>; alternatively, you could add a line to your <code>~/.bashrc</code> or
-similar like <code>alias jemdoc='/somepath/jemdoc.py'</code>. Remember to <code>chmod +x</code> your
-file to make it executable.
+<div class="codeblock">
+<div class="blockcontent"><pre>
+git clone https://github.com/cvxgrp/cvxdoc.git
+</pre></div></div>
+<p>The single executable script is <code>./jemdoc</code> at the repo root. It uses only the
+Python standard library, so any Python 3.11<code> interpreter is enough to run it.
+You can put it on your </code>PATH+ directly:
 </p>
-<p>jemdoc requires Python&nbsp;2.3 or later. If you have a working installation of
-Python, you should be ready to go. This includes all Macs, and almost any
-fairly modern unix or linux.
+<div class="codeblock">
+<div class="blockcontent"><pre>
+sudo install ./jemdoc /usr/local/bin/jemdoc
+</pre></div></div>
+<p>For server-side equation rendering, also install Node.js and the pinned KaTeX
+CLI from this repo:
 </p>
-<p><a href="dist/" target=&ldquo;blank&rdquo;>Old versions</a> can still be found. Mahesh Shastry provides a package with
-<a href="http://www.personal.psu.edu/mcs312/miscellany.html#portablejemdoc" target=&ldquo;blank&rdquo;>jemdoc compiled for Windows</a>.
+<div class="codeblock">
+<div class="blockcontent"><pre>
+npm install
+</pre></div></div>
+<p>If <code>katex</code> is not on <code>PATH</code>, jemdoc falls back to emitting raw <code>\(..\)</code> /
+<code>\<a href="..\" target=&ldquo;blank&rdquo;>..\</a></code> delimiters that a client-side script (e.g. MathJax loaded via a
+conf override) can render in the browser.
+</p>
+<h2>CSS</h2>
+<p>Stylesheets live in <a href="../css/"><code>css/</code></a> in the repo. <code>jemdoc.css</code> is the
+default; <code>jacob.css</code>, <code>white.css</code>, <code>green.css</code>, <code>exp.css</code>, and a few others
+are provided as alternative themes. Copy whichever one you want next to your
+output html, or load it from a conf file via the <code>[defaultcss]</code> block.
 </p>
 <h2>Where to next?</h2>
 <p>Read about <a href="using.html" target=&ldquo;blank&rdquo;>how to use jemdoc</a>, check out an <a href="example.html" target=&ldquo;blank&rdquo;>example
 page</a>, then refer to the <a href="cheatsheet.html" target=&ldquo;blank&rdquo;>cheat sheet</a> once you're underway.
-You could also download sample jemdoc code, like the <a href="index.jemdoc" target=&ldquo;blank&rdquo;>index page</a>
-for this website.
+You can also study the <a href="index.jemdoc" target=&ldquo;blank&rdquo;>source of this index page</a> as a starting
+point.
 </p>
 <div id="footer">
 <div id="footer-text">
-Page generated 2026-04-28 20:02:28 PDT, by <a href="https://github.com/wsshin/jemdoc_mathjax" target="blank">jemdoc+MathJax</a>.
+Page generated 2026-04-28 20:33:59 PDT, by <a href="https://github.com/wsshin/jemdoc_mathjax" target="blank">jemdoc+MathJax</a>.
 </div>
 </div>
 </main>

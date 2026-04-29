@@ -1,6 +1,6 @@
 [project]
 name = "jemdoc-cvx"
-version = "0.8.0"
+version = "1.0.0"
 description = "Modernized fork of jemdoc: a light text-based markup language for static websites, with server-side KaTeX rendering."
 requires-python = ">=3.11"
 license = { text = "GPL-3.0-or-later" }

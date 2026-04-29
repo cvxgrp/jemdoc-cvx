@@ -55,12 +55,12 @@ jemdoc -c mysite.conf index.jemdoc
 This will pull in the new +\[bodyend\]+ block from +mysite.conf+, but otherwise
 work as before.
 
-== Migrating from pre-0.8 jemdoc
+== Migrating from pre-1.0 jemdoc
 
-jemdoc-cvx 0.8 modernizes the default html templates. The block /names/ are
+jemdoc-cvx 1.0 modernizes the default html templates. The block /names/ are
 unchanged, but their contents now emit HTML5. If your +mysite.conf+ overrides
 +\[firstbit\]+, +\[bodystart\]+, +\[menustart\]+, +\[menuend\]+,
-+\[menulastbit\]+, +\[nomenu\]+, or +\[nomenulastbit\]+ from the pre-0.8 defaults,
++\[menulastbit\]+, +\[nomenu\]+, or +\[nomenulastbit\]+ from the pre-1.0 defaults,
 update your overrides to match the new templates:
 
 - +\[firstbit\]+ now emits +<\!DOCTYPE html>+ and +<html lang="en">+ instead of

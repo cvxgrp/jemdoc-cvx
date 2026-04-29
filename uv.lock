@@ -22,7 +22,7 @@ wheels = [
 
 [[package]]
 name = "jemdoc-cvx"
-version = "0.8.0"
+version = "1.0.0"
 source = { virtual = "." }
 
 [package.dev-dependencies]

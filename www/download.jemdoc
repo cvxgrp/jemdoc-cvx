@@ -1,28 +1,42 @@
 # jemdoc: menu{MENU}{download.html}
-= jemdoc -- download
+= jemdoc-cvx -- download
 
-Here is {{<a href="dist/jemdoc.py"
-onclick="javascript:urchinTracker('/downloads/jemdoc.py');">jemdoc.py</a>}}
-(+v0.7.3+). You can also download this [dist/jemdoc.css example css
-file] to get you started. You can easily modify the css to adjust colours, fonts
-and general layout elements to your taste. 
+jemdoc-cvx is distributed as source on GitHub:
 
-You may like to %sudo cp jemdoc.py /usr/bin/jemdoc%
-so that you can just type
-+jemdoc+; alternatively, you could add a line to your %~/.bashrc% or
-similar like %alias jemdoc='/somepath/jemdoc.py'%. Remember to +chmod \+x+ your
-file to make it executable.
+~~~
+{}{}
+git clone https://github.com/cvxgrp/cvxdoc.git
+~~~
 
-jemdoc requires Python~2.3 or later. If you have a working installation of
-Python, you should be ready to go. This includes all Macs, and almost any
-fairly modern unix or linux.
+The single executable script is +./jemdoc+ at the repo root. It uses only the
+Python standard library, so any Python 3.11+ interpreter is enough to run it.
+You can put it on your +PATH+ directly:
 
-[dist/ Old versions] can still be found. Mahesh Shastry provides a package with
-[http://www.personal.psu.edu/mcs312/miscellany.html\#portablejemdoc
-jemdoc compiled for Windows].
+~~~
+{}{}
+sudo install ./jemdoc /usr/local/bin/jemdoc
+~~~
+
+For server-side equation rendering, also install Node.js and the pinned KaTeX
+CLI from this repo:
+
+~~~
+{}{}
+npm install
+~~~
+
+If +katex+ is not on +PATH+, jemdoc falls back to emitting raw +\\(..\\)+ /
++\\[..\\]+ delimiters that a client-side script (e.g. MathJax loaded via a
+conf override) can render in the browser.
+
+== CSS
+Stylesheets live in [/../css/ +css/+] in the repo. +jemdoc.css+ is the
+default; +jacob.css+, +white.css+, +green.css+, +exp.css+, and a few others
+are provided as alternative themes. Copy whichever one you want next to your
+output html, or load it from a conf file via the +\[defaultcss\]+ block.
 
 == Where to next?
 Read about [using.html how to use jemdoc], check out an [example.html example
 page], then refer to the [cheatsheet.html cheat sheet] once you're underway.
-You could also download sample jemdoc code, like the [index.jemdoc index page]
-for this website.
+You can also study the [index.jemdoc source of this index page] as a starting
+point.

@@ -1,42 +1,38 @@
 # jemdoc: menu{MENU}{index.html}, showsource
-= jemdoc -- light markup
-[http://stanford.edu/~jacobm/ Jacob Mattingley] ([jacobm@stanford.edu])
+= jemdoc-cvx -- light markup, modernized
 
-jemdoc is a light text-based markup language designed for creating 
-websites. It takes a text file written with [example.html jemdoc markup], an
-optional configuration file and an optional menu file, and makes static websites
-that look something like this one, [http://cvxmod.net/ that one] or
-[http://www.stanford.edu/class/ee364a/ another one].
+jemdoc is a light text-based markup language designed for creating
+websites, originally written by [http://stanford.edu/~jacobm/ Jacob Mattingley].
+It takes a text file written with [example.html jemdoc markup], an
+optional configuration file and an optional menu file, and emits a static
+website. jemdoc was inspired by [http://www.methods.co.nz/asciidoc/ AsciiDoc];
+the main differences are that jemdoc is simpler (deliberately feature-poor)
+and has more consistent syntax.
 
-jemdoc was inspired by [http://www.methods.co.nz/asciidoc/ AsciiDoc], which is a
-text document format. AsciiDoc is great, and lots of the ideas from AsciiDoc are
-copied in jemdoc. The main differences are that jemdoc is simpler (you could say
-deliberately feature poor) and has more consistent syntax.
+This is *jemdoc-cvx*, a modernized fork of jemdoc and
+[https://github.com/wsshin/jemdoc_mathjax jemdoc+MathJax]. The +.jemdoc+
+input format is unchanged and the iconic look is preserved, but the tool
+itself is rewritten for a modern stack: HTML5 output, CSS3, Python 3.11+,
+and server-side equation rendering with [https://katex.org/ KaTeX]. See
+the [download.html download page] to get started or the
+[revision.html revision notes] for what changed.
 
-[download.html Download jemdoc.]
-
-~~~
-Version +0.7.3+ was released on 2012-11-27 with some small bug fixes.
-See the [revision.html release notes].
-~~~
-
-[https://github.com/jem/jemdoc Contribute to jemdoc on github.]
+[https://github.com/cvxgrp/cvxdoc Contribute to jemdoc-cvx on GitHub.]
 
 == Goals
 - Simple, consistent syntax.
-- $\mbox{\LaTeX}$ [latex.html equation support].
+- $\mbox{\LaTeX}$ [latex.html equation support], rendered server-side.
 - [tables.html Table support].
-- Portability. The (single) jemdoc [http://www.python.org/ Python] file \+
-  single css file \+ your input file {{&rarr;}} html.
+- Portability. A single executable +jemdoc+ script (Python stdlib only) \+
+  a single CSS file \+ your input file {{&rarr;}} html.
 - Based on [http://www.w3.org/Style/CSS/ CSS] so formatting specifics are
   independent of jemdoc.
-- Production of clean,
-  [http://validator.w3.org/check/referer
-  standards-compliant] [http://www.w3.org/TR/xhtml11/ XHTML 1.1].
-- Minimal bells and whistles, but simple fallback to raw html if required.
+- Clean, valid HTML5 output.
+- Minimal bells and whistles, with a raw-html fallback for edge cases.
 
 == License
-Copyright \C 2007--2012 Jacob Mattingley.
+Copyright \C 2007--2012 Jacob Mattingley. KaTeX/HTML5 modernization
+copyright \C 2026 Stanford University Convex Optimization Group.
 
 jemdoc is free software; you can redistribute it and\/or modify it under the
 terms of the [http://www.gnu.org/licenses/gpl-3.0.html GNU General Public
