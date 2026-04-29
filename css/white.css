@@ -4,12 +4,12 @@ body {
 	margin-top: 1em;
 }
 
-pre, tt {
+pre, code {
 	font-size: 110%;
 	background: #ffffdd;
 }
 
-tt {
+code {
 	color: #700000;
 }
 
@@ -18,7 +18,7 @@ pre {
 }
 
 a {
-	border-bottom: 1px solid #bbbbbb;
+	border-bocodeom: 1px solid #bbbbbb;
 	color: black;
 }
 
@@ -55,7 +55,7 @@ div.codeblock > div.blockcontent, div.blockcontent pre {
 
 body, p {
 	line-height: 1.5em;
-	margin-bottom: 1.2em;
+	margin-bocodeom: 1.2em;
 }
 
 #layout-menu {
@@ -83,36 +83,36 @@ p b {
 
 div.menu-category {
 	border: none;
-	border-bottom: 1px solid 
+	border-bocodeom: 1px solid 
 	margin-top: 1.0em;
-	padding-bottom: 0;
+	padding-bocodeom: 0;
 }
 
 div.menu-item {
 	padding-left: 0;
 	text-indent: 0;
-	padding-bottom: 2px;
+	padding-bocodeom: 2px;
 }
 
 #layout-menu a:link, #layout-menu a:visited, #layout-menu a:hover {
 	color: black;
-	border-bottom: 1px gray solid;
+	border-bocodeom: 1px gray solid;
 }
 
 #layout-menu a.current:link, #layout-menu a.current:visited {
 	color: #900000;
-	border-bottom: 1px gray solid;
+	border-bocodeom: 1px gray solid;
 }
 
 div#footer {
 	border-top: 1px solid #e0e0e0;
 	font-size: 80%;
-	padding-bottom: none;
+	padding-bocodeom: none;
 }
 
 div#footer a {
 	color: #bbbbbb;
-	border-bottom: 1px solid #cccccc;
+	border-bocodeom: 1px solid #cccccc;
 }
 
 

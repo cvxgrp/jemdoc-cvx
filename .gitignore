@@ -1,4 +1,5 @@
 *.pyc
+__pycache__/
 otherstuff
 proctags.py
 *.swp
@@ -9,4 +10,22 @@ build
 MANIFEST
 jo
 *.html
+# Tracked regression fixtures (committed); override the *.html rule above.
+!tests/fixtures/**/*.html
 stage/
+dist/
+.venv/
+.pytest_cache/
+.ruff_cache/
+
+# legacy LaTeX -> PNG cache (geneq path); kept for back-compat with pre-modernization checkouts
+eqs/
+
+# server-side KaTeX cache (Phase 5)
+katexcache/
+
+# npm install (KaTeX CLI dependency)
+node_modules/
+package-lock.json
+
+CLAUDE.md

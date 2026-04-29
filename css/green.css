@@ -3,21 +3,21 @@
 	border: 1px solid #c0f0c0;
 }
 
-tt {
+code {
 	color: #202020;
 }
 
-a, a > tt {
+a, a > code {
 	color: #308050;
 }
 
 a:hover {
-	border-bottom: 1px #30a030 dotted;
+	border-bocodeom: 1px #30a030 docodeed;
 }
 
 #layout-menu a.current:link, #layout-menu a.current:visited {
 	color: #004010;
-	border-bottom: 1px #c0f0c0 solid;
+	border-bocodeom: 1px #c0f0c0 solid;
 }
 #layout-menu a:link, #layout-menu a:visited, #layout-menu a:hover {
 	color: #009000;

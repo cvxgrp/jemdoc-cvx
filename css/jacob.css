@@ -1,7 +1,7 @@
 /* Extra css file for personal jemdoc customizations. */
 /* Copyright (C) Jacob Mattingley 2007. */
 
-a, a > tt {
+a, a > code {
 	color: #305080;
 }
 a:hover {

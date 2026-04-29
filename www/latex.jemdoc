@@ -1,15 +1,17 @@
 # jemdoc: menu{MENU}{latex.html}, showsource
 = jemdoc -- latex equations
 
-jemdoc includes support for LaTeX equations. LaTeX source embedded in jemdoc
-files is processed by calling [http://www.latex-project.org/ +latex+] and
-[http://www.nongnu.org/dvipng/ +dvipng+] (which must both be available for this
-feature). Resulting PNG images are then placed on the web page. Equations are
-typeset using pure LaTeX.
+jemdoc-cvx renders equations server-side with [https://katex.org/ KaTeX] at
+build time. LaTeX source embedded in a jemdoc file is piped through the
++katex+ CLI, and the resulting HTML is embedded directly in the page---no
+client-side JavaScript is required to view rendered math.
 
 ~~~
-jemdoc equation support relies on several pieces, any of which may break. No
-guarantees! Support may be limited.
+KaTeX supports a large subset of LaTeX but not everything MathJax does. Cross-
+referencing macros (+\\label+, +\\eqref+) and some +amsmath+ constructs are
+unsupported and render with a small red error indicator. Adjust the input or
+load a client-side renderer via a conf override if you need full MathJax
+features.
 ~~~
 
 == Inline equations
@@ -58,7 +60,8 @@ formatting details can be adjusted using CSS.
   \)
   (You can view the [latex.jemdoc jemdoc source] for this page.)
 - A random inequality might look like $3x + 2y^{4k + 6} \geq z$.
-- This page takes about 0.7 seconds to process on an average machine, including
-  making all the equations from scratch.
-- There are several configuration options for equations. They are detailed on
-  the [modelines.html modelines] page.
+- KaTeX-rendered output is cached by content hash in +katexcache/+ next to the
+  source, so the second build of a page is fast.
+- The +# jemdoc: noeqs+ modeline disables KaTeX rendering for a page; +$..$+
+  and +\\(..\\)+ pass through unchanged. See the [modelines.html modelines]
+  page.

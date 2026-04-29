@@ -1,55 +1,90 @@
-jemdoc+MathJax
-==============
-*jemdoc* is a light text-based markup language designed for creating websites.  See http://jemdoc.jaboc.net/ for more information and the detailed usage of jemdoc.
+jemdoc-cvx
+==========
+A Claude-coded modernization of *jemdoc* (Jacob Mattingley's static-site generator) and
+*jemdoc+MathJax* (Wonseok Shin's MathJax-aware fork). This fork keeps the
+same `.jemdoc` input format and the iconic look of generated pages, but
+modernizes the tool itself: HTML5 output, CSS3, Python 3.11+, and **server-side
+equation rendering with [KaTeX](https://katex.org/)**.
 
-*jemdoc+MathJax* adds the MathJax support to jemdoc.  You can use the same jemdoc syntax (and therefore no need to make any changes in your jemdoc scripts if you are an original jemdoc user), but the equations will be beautifully rendered by MathJax.  See http://web.stanford.edu/~wsshin/jemdoc+mathjax.html for more information and examples. 
+See <http://jemdoc.jaboc.net/> for the original jemdoc usage. `.jemdoc` files
+that worked with prior jemdoc versions continue to work here.
 
-System requirements
--------------------
-Python 2 or Python 3
+What's new in jemdoc-cvx
+------------------------
+- HTML5 output (no XHTML 1.1, no `xmlns`, no XML self-closing on void elements).
+- Semantic layout: the page menu/content uses `<nav>`/`<main>` inside a CSS-grid
+  `<div id="tlayout">` instead of a layout `<table>`.
+- Inline `+monospace+` emits `<code>` instead of the obsolete `<tt>`.
+- **Server-side math via KaTeX**: equations in `$...$` (inline) and `\(...\)`
+  block (display) are rendered to HTML at build time, with no client-side
+  script required to view the page.
+- Python 3.11+ only. Drops Python 2 compatibility scaffolding, `latexmath2png.py`,
+  and the dead `geneq` PNG-via-LaTeX equation path.
+- Repo plumbing: `pyproject.toml`, regression-fixture tests in `tests/`, and
+  a portable Makefile that no longer hard-codes the maintainer's home directory.
 
-(Many thanks to [Ganesh Ajjanagadde](http://www.mit.edu/~gajjanag/), who made most of the changes for Python 3 compatibility.)
+KaTeX vs MathJax
+----------------
+The previous fork (jemdoc+MathJax) emitted raw `\(...\)` placeholders that a
+client-side MathJax script rendered in the browser. This fork instead uses
+[KaTeX](https://katex.org/), invoked at build time via its npm CLI, and embeds
+the rendered HTML directly in the page.
 
-What's new in jemdoc+MathJax
-----------------------------
-- MathJax support
-- Underscore
-- Control of the behavior of links: open in the current web broswer tab or in a new tab
-- Works on both Python 2 and 3
+KaTeX supports a large subset of LaTeX but not everything MathJax does. In
+particular, equation cross-referencing (`\label{...}` / `\eqref{...}`) and
+some AMSmath constructs are not supported and will render with a small red
+error indicator. If your site needs full MathJax behaviour, drop the rendered
+output by adding `# jemdoc: noeqs` to the source and override `[bodystart]`
+in your conf to load MathJax client-side, as the previous fork did.
 
-How to use jemdoc+MathJax
--------------------------
-The only major difference from the original jemdoc in usage is the mechanism to fetch the javascript engine for MathJax.  The recommended way of doing this is to specify the URL of the javascript engine inside a configuration file (`mysite.conf` in the following example) and to provide the file to the jemdoc executable as
+Requirements
+------------
+- Python 3.11 or newer.
+- For server-side equation rendering: Node.js and the
+  [`katex`](https://www.npmjs.com/package/katex) CLI. Install locally with
+  `npm install` from this repo (uses the pinned version in `package.json`).
+  If `katex` isn't on `PATH`, jemdoc-cvx falls back to emitting raw
+  `\(...\)` / `\[...\]` so you can still ship pages that get rendered by a
+  conf-loaded client-side script.
+- For contributing (running tests / lint): [uv](https://docs.astral.sh/uv/).
+  `jemdoc` itself uses only the Python stdlib, so end users who only run the
+  tool need nothing more than a Python 3.11 interpreter.
 
-	jemdoc -c mysite.conf YOUR_JEMDOC_SCRIPT.jemdoc
+Development setup
+-----------------
+Dev tooling (pytest, ruff) is managed by uv. From a fresh clone:
 
-An example `mysite.conf` can be found in the `example/` directory.  
+    uv sync           # creates .venv/ and installs the dev dependency group
+    npm install       # installs the pinned KaTeX CLI
 
-The `example/` directory also contains jemdoc script files that demonstrate the usage of the additional features implemented in jemdoc+MathJax.  You can build a website out of these jemdoc scripts by executing the following command inside the `example/` directory:
+Then `make test` runs the regression harness via `uv run pytest`, and
+`make lint` runs ruff. The `.venv/` directory is gitignored; `uv.lock` is
+committed so installs are reproducible.
 
-	../jemdoc -c mysite.conf *.jemdoc
-	
-To see the resulting website, open any HTML files generated by the above command inside a web browser.
+Usage
+-----
+Render a single source file:
 
-Except for the MathJax support and the few additional features mentioned previously, jemdoc+MathJax is almost exactly the same as the original jemdoc.  To learn the usage of the original jemdoc, see the [jemdoc user guide](http://jemdoc.jaboc.net/using.html), expecially the [example page](http://jemdoc.jaboc.net/example.html).
+    ./jemdoc index.jemdoc
 
-Disclaimer
-----------
-The focus of the implementation of the additional features was to "make them just work," so the implementation is suboptimal, both in terms of performance and style.  
+With a config file:
 
-Still, several users and I find jemdoc+MathJax is quite stable and does the job correctly :-)
+    ./jemdoc -c mysite.conf foo.jemdoc
 
-Wonseok Shin
+The example site is in `example/`; build it with:
 
-README of the original jemdoc
------------------------------
-> jemdoc is a light text-based markup language designed for creating websites. It
-> takes a text file written with jemdoc markup, an optional configuration file and
-> an optional menu file, and makes static websites that look something like
-> http://jemdoc.jaboc.net/.
-> 
-> It was written by me, Jacob Mattingley, in 2007, and definitely isn't the type
-> of code I would put on my CV. Lots of people use jemdoc, especially in academia.
-> 
-> Much more info at http://jemdoc.jaboc.net/.
+    cd example && ../jemdoc -c mysite.conf *.jemdoc
 
+The project's own documentation is in `www/`; build with `make docs`.
+
+Tests
+-----
+`make test` runs the regression harness in `tests/`. Each `.jemdoc` source is
+re-rendered and byte-compared against the committed fixture (with the
+"page generated" timestamp normalised). Update fixtures intentionally when
+you change emitted HTML.
+
+License
+-------
+GPL-3.0-or-later. See `LICENSE` for the original jemdoc copyright; the
+KaTeX modernization changes are likewise GPL-3.0-or-later.

@@ -1,0 +1,37 @@
+[project]
+name = "jemdoc-cvx"
+version = "0.8.0"
+description = "Modernized fork of jemdoc: a light text-based markup language for static websites, with server-side KaTeX rendering."
+requires-python = ">=3.11"
+license = { text = "GPL-3.0-or-later" }
+authors = [
+    { name = "Jacob Mattingley" },
+    { name = "Wonseok Shin" },
+    { name = "Nikhil Devanathan" },
+]
+
+# `jemdoc` is a single executable script (no .py extension) invoked directly,
+# not a Python package. Tell uv to manage the venv but skip installing the
+# project itself.
+[tool.uv]
+package = false
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "ruff>=0.6",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",  # line too long; legacy script has long string templates
+    "E741",  # ambiguous variable name `l` (used pervasively for "line")
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

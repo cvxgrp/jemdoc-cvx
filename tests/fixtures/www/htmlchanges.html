@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/">
+<link rel="stylesheet" href="jemdoc.css">
+<link rel="stylesheet" href="jacob.css">
+<title>jemdoc &ndash; html changes</title>
+</head>
+<body>
+<script>
+var _gaq = _gaq || [];
+_gaq.push(['_setAccount', 'UA-2725246-3']);
+_gaq.push(['_trackPageview']);
+(function() {
+ var ga = document.createElement('script'); ga.async = true;
+ ga.src = ('https:' == document.location.protocol ? 'https://ssl'
+   : 'http://www') + '.google-analytics.com/ga.js';
+ var s = document.getElementsByTagName('script')[0];
+ s.parentNode.insertBefore(ga, s);
+ })();
+</script>
+<div id="tlayout">
+<nav id="layout-menu">
+<div class="menu-category">jemdoc</div>
+<div class="menu-item"><a href="index.html">home</a></div>
+<div class="menu-item"><a href="download.html">download</a></div>
+<div class="menu-item"><a href="revision.html">version/bug&nbsp;info</a></div>
+<div class="menu-item"><a href="contact.html">contact</a></div>
+<div class="menu-category">user's guide</div>
+<div class="menu-item"><a href="using.html">running&nbsp;jemdoc</a></div>
+<div class="menu-item"><a href="example.html">example&nbsp;page</a></div>
+<div class="menu-item"><a href="cheatsheet.html">cheat&nbsp;sheet</a></div>
+<div class="menu-item"><a href="extra.html">extra&nbsp;syntax</a></div>
+<div class="menu-category">configuration</div>
+<div class="menu-item"><a href="htmlchanges.html" class="current">html&nbsp;changes</a></div>
+<div class="menu-item"><a href="menu.html">adding&nbsp;a&nbsp;menu</a></div>
+<div class="menu-item"><a href="modelines.html">modelines</a></div>
+<div class="menu-category">goodies</div>
+<div class="menu-item"><a href="stuff.html">vim,&nbsp;make</a></div>
+<div class="menu-item"><a href="latex.html">latex&nbsp;equations</a></div>
+<div class="menu-item"><a href="tables.html">tables</a></div>
+</nav>
+<main id="layout-content">
+<div id="toptitle">
+<h1>jemdoc &ndash; html changes</h1>
+</div>
+<p>jemdoc has a built-in default configuration. This configuration includes the
+particular html tags used when producing html. If you wish to adjust the html
+that jemdoc produces, you can provide a configuration file to override the
+built-in defaults.
+</p>
+<h2>Example html change</h2>
+<p>Suppose you wanted to add <a href="http://www.google.com/analytics/" target=&ldquo;blank&rdquo;>Google
+Analytics</a> tracking to your website. That requires adding a short section of
+html before the <code>&lt;/body&gt;</code> tag.
+</p>
+<p>First, find out which block needs to be changed by using
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc --show-config
+</pre></div></div>
+<p>This prints the default html configuration. From this, the relevant
+configuration block (the one which includes the <code>&lt;/body&gt;</code> tag) has a title
+<code>[bodyend]</code>, and looks like
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+[bodyend]
+&lt;/body&gt;
+&lt;/html&gt;
+</pre></div></div>
+<p>Create a new file <code>mysite.conf</code>, say, and put a new <code>[bodyend]</code> block
+inside it. The new file looks like this:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+[bodyend]
+&lt;script src="http://www.google-analytics.com/urchin.js" type="text/javascript"&gt;
+&lt;/script&gt;
+&lt;script type="text/javascript"&gt;
+_uacct = "UA-0000000-0";
+urchinTracker();
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</pre></div></div>
+<p>Include your new configuration file, with the <code>-c</code> option (<a href="using.html" target=&ldquo;blank&rdquo;>more
+details here</a>):
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+jemdoc -c mysite.conf index.jemdoc
+</pre></div></div>
+<p>This will pull in the new <code>[bodyend]</code> block from <code>mysite.conf</code>, but otherwise
+work as before.
+</p>
+<h2>Migrating from pre-0.8 jemdoc</h2>
+<p>jemdoc-cvx 0.8 modernizes the default html templates. The block <i>names</i> are
+unchanged, but their contents now emit HTML5. If your <code>mysite.conf</code> overrides
+<code>[firstbit]</code>, <code>[bodystart]</code>, <code>[menustart]</code>, <code>[menuend]</code>,
+<code>[menulastbit]</code>, <code>[nomenu]</code>, or <code>[nomenulastbit]</code> from the pre-0.8 defaults,
+update your overrides to match the new templates:
+</p>
+<ul>
+<li><p><code>[firstbit]</code> now emits <code>&lt;!DOCTYPE html&gt;</code> and <code>&lt;html lang=&ldquo;en&rdquo;&gt;</code> instead of
+the XHTML 1.1 doctype and <code>xmlns</code> namespace, with <code>&lt;meta charset=&ldquo;utf-8&rdquo;&gt;</code>
+in place of <code>&lt;meta http-equiv=&ldquo;Content-Type&rdquo;&gt;</code>.
+</p>
+</li>
+<li><p><code>[menustart]</code><i><code>[menuend]</code></i><code>[menulastbit]</code> now use a <code>&lt;div id=&ldquo;tlayout&rdquo;&gt;</code>
+with <code>&lt;nav id=&ldquo;layout-menu&rdquo;&gt;</code> and <code>&lt;main id=&ldquo;layout-content&rdquo;&gt;</code> instead of
+<code>&lt;table id=&ldquo;tlayout&rdquo;&gt;&lt;tr valign=&ldquo;top&rdquo;&gt;&lt;td&gt;</code> for layout. The css selectors
+<code>
+</code>
+</p>
+</li>
+<li><p>Inline <code>monospace</code> now emits <code>&lt;code&gt;</code> instead of the obsolete <code>&lt;tt&gt;</code>. The
+<code>[codeblockcontenttt]</code> and <code>[codeblockendtt]</code> blocks emit <code>&lt;code class=&ldquo;tthl&rdquo;&gt;</code>
+in place of <code>&lt;tt class=&ldquo;tthl&rdquo;&gt;</code>. Update any custom css selectors that targeted
+<code>tt</code>.
+</p>
+</li>
+<li><p><code>&lt;br <i>&gt;</code>, <code>&lt;img &hellip; </i>&gt;</code>, <code>&lt;meta &hellip; <i>&gt;</code> and <code>&lt;link &hellip; </i>&gt;</code> are emitted
+without the trailing slash (HTML5).
+</p>
+</li>
+</ul>
+<p>If your conf does not override these blocks, no changes are needed.
+</p>
+<div id="footer">
+<div id="footer-text">
+Page generated 2026-04-28 20:02:28 PDT, by <a href="https://github.com/wsshin/jemdoc_mathjax" target="blank">jemdoc+MathJax</a>.
+</div>
+</div>
+</main>
+</div>
+</body>
+</html>

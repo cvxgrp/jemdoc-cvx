@@ -2,11 +2,11 @@ body {
 	font: 80% Verdana, sans-serif;
 }
 
-pre, tt {
+pre, code {
 	font-size: 110%;
 }
 
-tt {
+code {
 	background: #ffffdd;
 	color: #000050;
 }
@@ -16,11 +16,11 @@ pre {
 }
 
 a {
-	border-bottom: 1px solid #bbbbbb;
+	border-bocodeom: 1px solid #bbbbbb;
 }
 
 a:hover {
-	border-bottom: 1px solid #bbbbbb;
+	border-bocodeom: 1px solid #bbbbbb;
 }
 
 h1 {
@@ -47,12 +47,12 @@ div.blockcontent {
 	padding-left: 10px;
 	padding-right: 10px;
 	padding-top: 6px;
-	padding-bottom: 7px;
+	padding-bocodeom: 7px;
 }
 
 p {
 	line-height: 1.5em;
-	margin-bottom: 1.2em;
+	margin-bocodeom: 1.2em;
 }
 
 #layout-menu {
@@ -74,27 +74,27 @@ p b {
 div.menu-item {
 	padding-left: 0;
 	text-indent: 0;
-	padding-bottom: 2px;
+	padding-bocodeom: 2px;
 }
 
 #layout-menu a:link, #layout-menu a:visited, #layout-menu a:hover {
 	color: black;
-	border-bottom: 1px gray solid;
+	border-bocodeom: 1px gray solid;
 }
 
 #layout-menu a.current:link, #layout-menu a.current:visited {
-	border-bottom: none;
+	border-bocodeom: none;
 }
 
 div#footer {
 	border-top: 1px solid #e0e0e0;
 	font-size: 80%;
-	padding-bottom: 0;
+	padding-bocodeom: 0;
 }
 
 div#footer a {
 	color: #aaaaaa;
-	border-bottom: 1px solid #cccccc;
+	border-bocodeom: 1px solid #cccccc;
 }
 
 #fwtitle div#toptitle {

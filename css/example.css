@@ -18,7 +18,7 @@ td {
 	border: none;
 }
 
-td.rightcell tt {
+td.rightcell code {
 	background: none;
 }
 

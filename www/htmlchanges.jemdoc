@@ -54,3 +54,28 @@ jemdoc -c mysite.conf index.jemdoc
 
 This will pull in the new +\[bodyend\]+ block from +mysite.conf+, but otherwise
 work as before.
+
+== Migrating from pre-0.8 jemdoc
+
+jemdoc-cvx 0.8 modernizes the default html templates. The block /names/ are
+unchanged, but their contents now emit HTML5. If your +mysite.conf+ overrides
++\[firstbit\]+, +\[bodystart\]+, +\[menustart\]+, +\[menuend\]+,
++\[menulastbit\]+, +\[nomenu\]+, or +\[nomenulastbit\]+ from the pre-0.8 defaults,
+update your overrides to match the new templates:
+
+- +\[firstbit\]+ now emits +<\!DOCTYPE html>+ and +<html lang="en">+ instead of
+the XHTML 1.1 doctype and +xmlns+ namespace, with +<meta charset="utf-8">+
+in place of +<meta http-equiv="Content-Type">+.
+- +\[menustart\]+/+\[menuend\]+/+\[menulastbit\]+ now use a +<div id="tlayout">+
+with +<nav id="layout-menu">+ and +<main id="layout-content">+ instead of
++<table id="tlayout"><tr valign="top"><td>+ for layout. The css selectors
++#tlayout+, +#layout-menu+, and +#layout-content+ are unchanged, but
++#layout-menu td+ is gone.
+- Inline +monospace+ now emits +<code>+ instead of the obsolete +<tt>+. The
++\[codeblockcontenttt\]+ and +\[codeblockendtt\]+ blocks emit +<code class="tthl">+
+in place of +<tt class="tthl">+. Update any custom css selectors that targeted
++tt+.
+- +<br />+, +<img ... />+, +<meta ... />+ and +<link ... />+ are emitted
+without the trailing slash (HTML5).
+
+If your conf does not override these blocks, no changes are needed.

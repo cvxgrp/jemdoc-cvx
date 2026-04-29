@@ -1,3 +1,5 @@
+JEMDOC ?= $(realpath ../jemdoc)
+
 DOCS=index cheatsheet contact download revision using menu stuff extra example modelines htmlchanges latex tables
 
 HDOCS=$(addsuffix .html, $(DOCS))
@@ -14,10 +16,13 @@ extra :
 	cp ~/.vim/syntax/jemdoc.vim dist/
 
 .PHONY : docs
-docs : $(PHDOCS)
+docs : html $(PHDOCS)
+
+html :
+	mkdir -p html
 
 html/%.html : %.jemdoc MENU jemdoc.conf
-	~/jemdoc/jemdoc -o $@ -c jemdoc.conf $< 
+	$(JEMDOC) -o $@ -c jemdoc.conf $<
 
 example.jemdoc : exampleIN.jemdoc procexample.py
 	@echo 'making exampleIN'

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-"""jemdoc version 0.7.3, 2012-11-27."""
+"""jemdoc-cvx version 0.8.0, modernized fork of jemdoc+MathJax (Python 3.11+)."""
 
 # Copyright (C) 2007-2012 Jacob Mattingley (jacobm@stanford.edu).
 #
@@ -22,51 +22,43 @@
 # latexmath2png, by Kamil Kisiel (kamil@kamikisiel.net).
 #
 
-from __future__ import print_function
-import sys
+import hashlib
+import io
 import os
 import re
+import shutil
+import subprocess
+import sys
 import time
-import io
-from subprocess import *
-from types import *
-import tempfile
+from subprocess import PIPE, Popen
+
+KATEX_VERSION = '0.16.11'
+
+def find_katex():
+  """Returns the path to the katex CLI, or None if not installed.
+
+  Prefers a local install (./node_modules/.bin/katex) over a system one so
+  that the pinned KATEX_VERSION wins.
+  """
+  here = os.path.dirname(os.path.abspath(__file__))
+  local = os.path.join(here, 'node_modules', '.bin', 'katex')
+  if os.access(local, os.X_OK):
+    return local
+  return shutil.which('katex')
+
+KATEX_PATH = find_katex()
 
 def info():
   print(__doc__)
   print('Platform: ' + sys.platform + '.')
-  print('Python: %s, located at %s.' % (sys.version[:5], sys.executable))
-  print('Equation support:', end=' ')
-  (supported, message) = testeqsupport()
-  if supported:
-    print('yes.')
+  print('Python: %s, located at %s.' % (sys.version.split()[0], sys.executable))
+  if KATEX_PATH:
+    print('KaTeX: %s.' % KATEX_PATH)
   else:
-    print('no.')
-  print(message)
+    print('KaTeX: not found (server-side equation rendering disabled; falls back to client-side MathJax via conf overrides).')
 
-def testeqsupport():
-  supported = True
-  msg = ''
-  p = Popen('latex --version', shell=True, stdout=PIPE, stderr=PIPE)
-  rc = p.wait()
-  if rc != 0:
-    msg += '  latex: not found.\n'
-    supported = False
-  else:
-    msg += '  latex: ' + p.stdout.readlines()[0].rstrip() + '.\n'
-  p = Popen('dvipng --version', shell=True, stdout=PIPE, stderr=PIPE)
-  rc = p.wait()
-  if rc != 0:
-    msg += '  dvipng: not found.\n'
-    supported = False
-  else:
-    msg += '  dvipng: ' + p.stdout.readlines()[0].rstrip() + '.\n'
-
-  return (supported, msg[:-1])
-
-class controlstruct(object):
-  def __init__(self, infile, outfile=None, conf=None, inname=None, eqs=True,
-         eqdir='eqs', eqdpi=130):
+class controlstruct:
+  def __init__(self, infile, outfile=None, conf=None, inname=None, eqs=True):
     self.inname = inname
     self.inf = infile
     self.outf = outfile
@@ -74,24 +66,66 @@ class controlstruct(object):
     self.linenum = 0
     self.otherfiles = []
     self.eqs = eqs
-    self.eqdir = eqdir
-    self.eqdpi = eqdpi
-    # Default to supporting equations until we know otherwise.
-    self.eqsupport = True
-    self.eqcache = True
-    self.eqpackages = []
-    self.texlines = []
     self.analytics = None
-    self.eqbd = {} # equation base depth.
-    self.baseline = None
+    # Phase 5: server-side KaTeX rendering. Set to True when the first
+    # equation is rendered so the page header can include katex.min.css.
+    self.has_equations = False
+    self.katexcache_dir = 'katexcache'
 
   def pushfile(self, newfile):
     self.otherfiles.insert(0, self.inf)
-    self.inf = io.open(newfile, 'rb')
+    # Binary mode is required because pc() relies on seek(-1, 1), which is
+    # undefined for text-mode files. Reads decode bytes -> str at the call site.
+    self.inf = open(newfile, 'rb')
 
   def nextfile(self):
     self.inf.close()
     self.inf = self.otherfiles.pop(0)
+
+
+def genkatexeq(f, eq, displaymode):
+  """Render a TeX expression to KaTeX HTML, with a filesystem cache.
+
+  The cache is keyed by sha256(eq + displaymode + KATEX_VERSION) so that a
+  KaTeX version bump invalidates everything cleanly. Cache entries are tiny
+  HTML files in ``katexcache/<hash>.html``.
+
+  Falls back to raw \\(...\\)/\\[...\\] markers (the pre-Phase-5 behavior) if
+  the katex CLI is not installed; in that mode the output matches what
+  client-side MathJax expects when its script is loaded via a conf override.
+  """
+  if not KATEX_PATH:
+    if displaymode:
+      return '\\[' + eq + '\\]'
+    return '\\(' + eq + '\\)'
+
+  key_input = (eq + '|' + str(displaymode) + '|' + KATEX_VERSION).encode('utf-8')
+  key = hashlib.sha256(key_input).hexdigest()
+  cache_path = os.path.join(f.katexcache_dir, key + '.html')
+
+  if os.path.exists(cache_path):
+    with open(cache_path, encoding='utf-8') as cf:
+      return cf.read()
+
+  cmd = [KATEX_PATH, '--no-throw-on-error']
+  if displaymode:
+    cmd.append('--display-mode')
+  result = subprocess.run(cmd, input=eq, capture_output=True, text=True, check=False)
+  if result.returncode != 0:
+    sys.stderr.write('katex error rendering %r:\n%s\n' % (eq, result.stderr))
+    # Fall back to the raw delimiters; client-side MathJax can still pick it up
+    # if the page conf includes its script.
+    if displaymode:
+      return '\\[' + eq + '\\]'
+    return '\\(' + eq + '\\)'
+
+  rendered = result.stdout.rstrip('\n')
+
+  os.makedirs(f.katexcache_dir, exist_ok=True)
+  with open(cache_path, 'w', encoding='utf-8') as cf:
+    cf.write(rendered)
+
+  return rendered
 
 def showhelp():
   a = """Usage: jemdoc [OPTIONS] [SOURCEFILE] 
@@ -133,15 +167,17 @@ def showhelp():
 
 def standardconf():
   a = """[firstbit]
-  <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
-    "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
-  <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+  <!DOCTYPE html>
+  <html lang="en">
   <head>
-  <meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/" />
-  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
-  
+  <meta charset="utf-8">
+  <meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/">
+
   [defaultcss]
-  <link rel="stylesheet" href="jemdoc.css" type="text/css" />
+  <link rel="stylesheet" href="jemdoc.css">
+
+  [katexcss]
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
   
   [windowtitle]
   # used in header for window title.
@@ -169,25 +205,24 @@ def standardconf():
   <body>
   
   [analytics]
-  <script type="text/javascript">
+  <script>
   var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-  document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+  document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js'%3E%3C/script%3E"));
   </script>
-  <script type="text/javascript">
+  <script>
   try {
       var pageTracker = _gat._getTracker("|");
       pageTracker._trackPageview();
   } catch(err) {}</script>
   
   [menustart]
-  <table summary="Table for page layout." id="tlayout">
-  <tr valign="top">
-  <td id="layout-menu">
-  
+  <div id="tlayout">
+  <nav id="layout-menu">
+
   [menuend]
-  </td>
-  <td id="layout-content">
-  
+  </nav>
+  <main id="layout-content">
+
   [menucategory]
   <div class="menu-category">|</div>
 
@@ -195,24 +230,23 @@ def standardconf():
   <div class="menu-item"><a href="|1"|3>|2</a></div>
 
   [specificcss]
-  <link rel="stylesheet" href="|" type="text/css" />
+  <link rel="stylesheet" href="|">
 
   [specificjs]
-  <script src="|.js" type="text/javascript"></script>
-  
+  <script src="|.js"></script>
+
   [currentmenuitem]
   <div class="menu-item"><a href="|1" class="current"|3>|2</a></div>
-  
+
   [nomenu]
-  <div id="layout-content">
-  
+  <main id="layout-content">
+
   [menulastbit]
-  </td>
-  </tr>
-  </table>
-  
-  [nomenulastbit]
+  </main>
   </div>
+
+  [nomenulastbit]
+  </main>
   
   [bodyend]
   </body>
@@ -237,10 +271,10 @@ def standardconf():
   </pre></div></div>
   
   [codeblockcontenttt]
-  <div class="blockcontent"><tt class="tthl">
-  
+  <div class="blockcontent"><code class="tthl">
+
   [codeblockendtt]
-  </tt></div></div>
+  </code></div></div>
   
   [infoblockend]
   </div></div>
@@ -299,7 +333,7 @@ def parseconf(cns):
   # manually add the defaults as a file handle.
   fs = [io.BytesIO(standardconf().encode('utf-8'))]
   for sname in cns:
-    fs.append(io.open(sname, 'rb'))
+    fs.append(open(sname, 'rb'))
 
   for f in fs:
     while pc(controlstruct(f)) != '':
@@ -322,7 +356,7 @@ def parseconf(cns):
   return syntax
 
 def insertmenuitems(f, mname, current, prefix):
-  m = io.open(mname, 'rb')
+  m = open(mname, 'rb')
   while pc(controlstruct(m)) != '':
     l = readnoncomment(m)
     l = l.strip()
@@ -373,11 +407,7 @@ def insertmenuitems(f, mname, current, prefix):
   m.close()
 
 def out(f, s):
-#  print(type(s))
-  if sys.version_info[0] == 2 and type(s) is StringType:
-    f.write(s.decode('utf-8'))
-  else:
-    f.write(s)
+  f.write(s)
 
 def mathjaxussub(link):
   link = link.replace('_', 'UNDERSCORE65358')
@@ -428,16 +458,18 @@ def hb(f, tag, content1, content2=None, content3=None):
   if content3 is None:
     content3 = ""
 
+  # NB: lambda replacement avoids re.sub interpreting backslashes inside the
+  # replacement string. The KaTeX HTML output contains LaTeX source verbatim
+  # (\nabla, \frac, ...) inside <annotation> tags; without lambdas, re.sub
+  # treats those as regex escapes and raises PatternError.
   if content2 is None:
-#    out(f, re.sub(r'\|', content1, tag))
-    r = re.sub(r'\|', content1, tag)
-    r = re.sub(r'\|3', content3, r)
+    r = re.sub(r'\|3', lambda _m: content3, re.sub(r'\|', lambda _m: content1, tag))
     r = mathjaxeqresub(r)
     out(f, r)
   else:
-    r = re.sub(r'\|1', content1, tag)
-    r = re.sub(r'\|3', content3, r)
-    r = re.sub(r'\|2', content2, r)
+    r = re.sub(r'\|1', lambda _m: content1, tag)
+    r = re.sub(r'\|3', lambda _m: content3, r)
+    r = re.sub(r'\|2', lambda _m: content2, r)
     r = mathjaxeqresub(r)
     out(f, r)
 
@@ -469,7 +501,7 @@ def doincludes(f, l):
   i = 'include{'
   l = l.rstrip()
   if l.startswith(ir):
-    nf = io.open(l[len(ir):-1], 'rb')
+    nf = open(l[len(ir):-1], 'rb')
     f.outf.write(nf.read().decode('utf-8'))
     nf.close()
   elif l.startswith(i):
@@ -555,7 +587,12 @@ def np(f, withcount=False, eatblanks=True):
     return s
 
 def quote(s):
-  return re.sub(r"""[\\*/+"'<>&$%\.~[\]-]""", r'\\\g<0>', s)
+  # Escapes every character with special jemdoc meaning by prefixing it with
+  # a backslash. The trailing strip pass in br() removes the backslashes after
+  # the rest of the rewriter pipeline runs, leaving the literal char intact.
+  # Underscore is included because it's jemdoc's underline syntax and KaTeX
+  # HTML output can contain bare underscores (e.g. inside <annotation>...).
+  return re.sub(r"""[\\*/+"'<>&$%\.~_[\]-]""", r'\\\g<0>', s)
 
 def replacequoted(b):
   """Quotes {{raw html}} sections."""
@@ -589,41 +626,48 @@ def replacepercents(b):
   return b
 
 def replaceequations(b, f):
-  # replace $sections$ and \(sections\) as equations.
+  """Replace $...$ (inline) and \\(...\\) (display) with rendered equations.
+
+  When the katex CLI is available, equations are rendered server-side and the
+  resulting HTML is embedded inline (wrapped in {{ ... }} so the rest of the
+  rewriter pipeline leaves it alone). When katex is not available, falls back
+  to the legacy MathJax-compatible delimiter passthrough so a conf override
+  loading client-side MathJax keeps working.
+  """
   rs = ((re.compile(r'(?<!\\)\$(.*?)(?<!\\)\$', re.M + re.S), False),
-     (re.compile(r'(?<!\\)\\\((.*?)(?<!\\)\\\)', re.M + re.S), True))
-  for (r, wl) in rs:
+        (re.compile(r'(?<!\\)\\\((.*?)(?<!\\)\\\)', re.M + re.S), True))
+  for (r, displaymode) in rs:
     m = r.search(b)
     while m:
       eq = m.group(1)
-      if wl:
-        fn = str(abs(hash(eq + 'wl120930alsdk')))
+      f.has_equations = True
+
+      if KATEX_PATH:
+        rendered = genkatexeq(f, eq, displaymode)
+        rendered = rendered.replace('{{', 'DOUBLEOPENBRACE')
+        rendered = rendered.replace('}}', 'DOUBLECLOSEBRACE')
+        if displaymode:
+          # Wrap the entire surrounding paragraph in <p class="eqwl"> so
+          # display equations render centred (per the original \( ... \)
+          # paragraph-block convention).
+          b = b[:m.start()] + '{{' + rendered + '}}' + b[m.end():]
+          b = '{{<p class="eqwl">}}' + b + '{{</p>}}'
+        else:
+          b = b[:m.start()] + '{{' + rendered + '}}' + b[m.end():]
       else:
-        fn = str(abs(hash(eq)))
+        # Fallback: emit MathJax-style delimiters and let a conf-loaded
+        # client-side script render them at view time.
+        eqtext = allreplace(eq)
+        eqtext = mathjaxeqsub(eqtext)
+        eqtext = eqtext.replace('{{', 'DOUBLEOPENBRACE')
+        eqtext = eqtext.replace('}}', 'DOUBLECLOSEBRACE')
+        if displaymode:
+          b = b[:m.start()] + 'BACKSLASH65358OPENBRACKET65358' + eqtext + 'BACKSLASH65358CLOSEBRACKET65358' + b[m.end():]
+          b = '<p class=QUOTATION65358eqwlQUOTATION65358>\n' + b + '\n</p>'
+          b = mathjaxeqsub(b)
+        else:
+          b = b[:m.start()] + 'BACKSLASH65358(' + eqtext + 'BACKSLASH65358)' + b[m.end():]
 
-      eqtext = allreplace(eq)
-#      print eqtext
-#      eqtext = eqtext.replace('\\', '')
-      eqtext = mathjaxeqsub(eqtext)
-
-      # Double braces will cause problems with escaping of image tag.
-      eqtext = eqtext.replace('{{', 'DOUBLEOPENBRACE')
-      eqtext = eqtext.replace('}}', 'DOUBLECLOSEBRACE')
-
-      if wl:
-#        b = b[:m.start()] + \
-#            '{{\n<div class="eqwl"><img class="eqwl" src="%s" alt="%s" />\n<br /></div>}}' % (fullfn, eqtext) + b[m.end():]
-        #b = b[:m.start()] + 'BACKSLASH65358OPENBRACKET65358\n' + eqtext + '\nBACKSLASH65358CLOSEBRACKET65358'+ b[m.end():]
-        b = b[:m.start()] + 'BACKSLASH65358OPENBRACKET65358' + eqtext + 'BACKSLASH65358CLOSEBRACKET65358'+ b[m.end():]
-        #b = b[:m.start()] + 'BACKSLASH(BACKSLASHbegin{equation}\n' + eqtext + '\nBACKSLASHend{equation}BACKSLASH)'+ b[m.end():]
-        b = '<p style=QUOTATION65358text-align:centerQUOTATION65358>\n' + b + '\n</p>'
-        b = mathjaxeqsub(b)
-      else:
-#        b = b[:m.start()] + \
-#          '{{<img class="eq" src="%s" alt="%s" style="vertical-align: -%dpx" />}}' % (fullfn, eqtext, offset) + b[m.end():]
-        b = b[:m.start()] + 'BACKSLASH65358(' + eqtext + 'BACKSLASH65358)' + b[m.end():]
-
-      # jem: also clean out line breaks in the alttext?
       m = r.search(b, m.start())
 
   return replacequoted(b)
@@ -659,7 +703,7 @@ def replaceimages(b):
     else:
       bits.append(r'alt=\"\"')
 
-    b = b[:m.start()] + r'<img %s />' % " ".join(bits) + b[m.end():]
+    b = b[:m.start()] + r'<img %s>' % " ".join(bits) + b[m.end():]
 
     m = r.search(b, m.start())
 
@@ -714,12 +758,12 @@ def br(b, f, tableblock=False):
   for m in r.findall(b):
     repl = os.environ.get(m)
     if repl == None:
-      b = re.sub("!\$%s\$!" % m, 'FAILED_MATCH_' + m, b)
+      b = re.sub(r"!\$%s\$!" % m, 'FAILED_MATCH_' + m, b)
     else:
-      b = re.sub("!\$%s\$!" % m, repl, b)
+      b = re.sub(r"!\$%s\$!" % m, repl, b)
 
   # Deal with literal backspaces.
-  if f.eqs and f.eqsupport:
+  if f.eqs:
     b = replaceequations(b, f)
 
   b = re.sub(r'\\\\', 'jemLITerl33talBS', b)
@@ -755,7 +799,7 @@ def br(b, f, tableblock=False):
  
   # Deal with +monospace+.
   r = re.compile(r'(?<!\\)\+(.*?)(?<!\\)\+', re.M + re.S)
-  b = re.sub(r, r'<tt>\1</tt>', b)
+  b = re.sub(r, r'<code>\1</code>', b)
 
   # Deal with "double quotes".
   r = re.compile(r'(?<!\\)"(.*?)(?<!\\)"', re.M + re.S)
@@ -802,7 +846,7 @@ def br(b, f, tableblock=False):
 
   # Deal with line break.
   r = re.compile(r"(?<!\\)\\n", re.M + re.S)
-  b = re.sub(r, r'<br />', b)
+  b = re.sub(r, r'<br>', b)
 
   # Deal with paragraph break. Caution! Should only use when we're already in
   # a paragraph.
@@ -892,7 +936,7 @@ def gethl(lang):
     d['special'] = ['cols', 'optvar', 'param', 'problem', 'norm2', 'norm1',
             'value', 'minimize', 'maximize', 'rows', 'rand',
             'randn', 'printval', 'matrix']
-    d['error'] = ['\w*Error',]
+    d['error'] = [r'\w*Error']
     d['commentuntilend'] = '#'
     d['strings'] = True
   elif lang in ['c', 'c++', 'cpp']:
@@ -901,7 +945,7 @@ def gethl(lang):
             'clock_t', 'struct', 'long', 'extern', 'char']
     d['operator'] = ['#include.*', '#define', '@pyval{', '}@', '@pyif{',
              '@py{']
-    d['error'] = ['\w*Error',]
+    d['error'] = [r'\w*Error']
     d['commentuntilend'] = ['//', '/*', ' * ', '*/']
   elif lang in ('rb', 'ruby'):
     d['statement'] = putbsbs(['while', 'until', 'unless', 'if', 'elsif',
@@ -910,7 +954,7 @@ def gethl(lang):
     d['operator'] = putbsbs(['and', 'not', 'or'])
     d['builtin'] = putbsbs(['true', 'false', 'require', 'warn'])
     d['special'] = putbsbs(['IO'])
-    d['error'] = putbsbs(['\w*Error',])
+    d['error'] = putbsbs([r'\w*Error'])
     d['commentuntilend'] = '#'
     d['strings'] = True
     d['strings'] = True
@@ -928,13 +972,13 @@ def gethl(lang):
     d['builtin'] = putbsbs(['gem', 'gcc', 'python', 'curl', 'wget', 'ssh',
                 'latex', 'find', 'sed', 'gs', 'grep', 'tee',
                 'gzip', 'killall', 'echo', 'touch',
-                'ifconfig', 'git', '(?<!\.)tar(?!\.)'])
+                'ifconfig', 'git', r'(?<!\.)tar(?!\.)'])
     d['commentuntilend'] = '#'
     d['strings'] = True
   elif lang == 'matlab':
     d['statement'] = putbsbs(['max', 'min', 'find', 'rand', 'cumsum', 'randn', 'help',
                      'error', 'if', 'end', 'for'])
-    d['operator'] = ['&gt;', 'ans =', '>>', '~', '\.\.\.']
+    d['operator'] = ['&gt;', 'ans =', '>>', '~', r'\.\.\.']
     d['builtin'] = putbsbs(['csolve'])
     d['commentuntilend'] = '%'
     d['strings'] = True
@@ -1001,89 +1045,6 @@ def language(f, l, hl):
       return
 
   out(f, l + '\n')
-
-def geneq(f, eq, dpi, wl, outname):
-  # First check if there is an existing file.
-  eqname = os.path.join(f.eqdir, outname + '.png')
-
-  eqdepths = {}
-  if f.eqcache:
-    try:
-      dc = io.open(os.path.join(f.eqdir, '.eqdepthcache'), 'rb')
-      for l in dc:
-        a = l.split()
-        eqdepths[a[0]] = int(a[1])
-      dc.close()
-
-      if os.path.exists(eqname) and eqname in eqdepths:
-        return (eqdepths[eqname], eqname)
-    except IOError:
-      print('eqdepthcache read failed.')
-
-  # Open tex file.
-  tempdir = tempfile.gettempdir()
-  fd, texfile = tempfile.mkstemp('.tex', '', tempdir, True)
-  basefile = texfile[:-4]
-  g = os.fdopen(fd, 'wb')
-
-  preamble = '\documentclass{article}\n'
-  for p in f.eqpackages:
-    preamble += '\\usepackage{%s}\n' % p
-  for p in f.texlines:
-    # Replace \{ and \} in p with { and }.
-    # XXX hack.
-    preamble += re.sub(r'\\(?=[{}])', '', p + '\n')
-  preamble += '\pagestyle{empty}\n\\begin{document}\n'
-  g.write(preamble)
-  
-  # Write the equation itself.
-  if wl:
-    g.write('\\[%s\\]' % eq)
-  else:
-    g.write('$%s$' % eq)
-
-  # Finish off the tex file.
-  g.write('\n\\newpage\n\end{document}')
-  g.close()
-
-  exts = ['.tex', '.aux', '.dvi', '.log']
-  try:
-    # Generate the DVI file
-    latexcmd = 'latex -file-line-error-style -interaction=nonstopmode ' + \
-         '-output-directory %s %s' % (tempdir, texfile)
-    p = Popen(latexcmd, shell=True, stdout=PIPE)
-    rc = p.wait()
-    if rc != 0:
-      for l in p.stdout.readlines():
-        print('  ' + l.rstrip())
-      exts.remove('.tex')
-      raise Exception('latex error')
-
-    dvifile = basefile + '.dvi'
-    dvicmd = 'dvipng --freetype0 -Q 9 -z 3 --depth -q -T tight -D %i -bg Transparent -o %s %s' % (dpi, eqname, dvifile)
-    # discard warnings, as well.
-    p = Popen(dvicmd, shell=True, stdout=PIPE, stderr=PIPE)
-    rc = p.wait()
-    if rc != 0:
-      print(p.stderr.readlines())
-      raise Exception('dvipng error')
-    depth = int(p.stdout.readlines()[-1].split('=')[-1])
-  finally:
-    # Clean up.
-    for ext in exts:
-      g = basefile + ext
-      if os.path.exists(g):
-        os.remove(g)
-
-  # Update the cache if we're using it.
-  if f.eqcache and eqname not in eqdepths:
-    try:
-      dc = io.open(os.path.join(f.eqdir, '.eqdepthcache'), 'ab')
-      dc.write(eqname + ' ' + str(depth) + '\n')
-      dc.close()
-    except IOError:
-      print('eqdepthcache update failed.')
-  return (depth, eqname)
 
 def dashlist(f, ordered=False):
   level = 0
@@ -1193,19 +1154,19 @@ def codeblock(f, g):
         out(f.outf, l)
       elif g[1] == 'jemdoc':
         # doing this more nicely needs python 2.5.
-        for x in ('#', '~', '>>>', '\~', '{'):
+        for x in ('#', '~', '>>>', r'\~', '{'):
           if str(l).lstrip().startswith(x):
-            out(f.outf, '</tt><pre class="tthl">')
-            out(f.outf, l + '</pre><tt class="tthl">')
+            out(f.outf, '</code><pre class="tthl">')
+            out(f.outf, l + '</pre><code class="tthl">')
             break
         else:
           for x in (':', '.', '-'):
             if str(l).lstrip().startswith(x):
-              out(f.outf, '<br />' + prependnbsps(l))
+              out(f.outf, '<br>' + prependnbsps(l))
               break
           else:
             if str(l).lstrip().startswith('='):
-              out(f.outf, prependnbsps(l) + '<br />')
+              out(f.outf, prependnbsps(l) + '<br>')
             else:
               out(f.outf, l)
       else:
@@ -1310,14 +1271,6 @@ def procfile(f):
           r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
           js += re.findall(r, b)
 
-        elif b.startswith('addpackage'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          f.eqpackages += re.findall(r, b)
-
-        elif b.startswith('addtex'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          f.texlines += re.findall(r, b)
-
         elif b.startswith('analytics'):
           r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
           f.analytics = re.findall(r, b)[0]
@@ -1331,32 +1284,33 @@ def procfile(f):
           title = g[0]
 
         elif b.startswith('noeqs'):
+          # Disables equation processing for this file. KaTeX or MathJax
+          # placeholders won't be emitted for $...$ / \(...\) blocks.
           f.eqs = False
 
-        elif b.startswith('noeqcache'):
-          f.eqcache = False
-
-        elif b.startswith('eqsize'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          g = re.findall(r, b)
-          if len(g) != 1:
-            raise SyntaxError('eqsize error on line %d' % f.linenum)
-
-          f.eqdpi = int(g[0])
-
-        elif b.startswith('eqdir'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          g = re.findall(r, b)
-          if len(g) != 1:
-            raise SyntaxError('eqdir error on line %d' % f.linenum)
-
-          f.eqdir = g[0]
+  # Pre-scan body for equation markers so we know whether to emit the KaTeX
+  # stylesheet in the <head>. The file handle is positioned just past the
+  # directive block, so we read the rest, scan, and seek back.
+  if f.eqs:
+    body_start = f.inf.tell()
+    snapshot = f.inf.read()
+    f.inf.seek(body_start)
+    if re.search(rb'(?<!\\)\$|(?<!\\)\\\(', snapshot):
+      f.has_equations = True
+    del snapshot
 
   # Get the file started with the firstbit.
   out(f.outf, f.conf['firstbit'])
 
   if not nodefaultcss:
     out(f.outf, f.conf['defaultcss'])
+
+  # Only emit the KaTeX stylesheet on pages that actually got server-side
+  # rendering. If KaTeX is unavailable, the equation passthrough fallback
+  # expects a client-side renderer loaded via a conf override; pulling in
+  # KaTeX's CSS without its JS would be useless.
+  if f.has_equations and KATEX_PATH and 'katexcss' in f.conf:
+    out(f.outf, f.conf['katexcss'])
 
   # Add per-file css lines here.
   for i in range(len(css)):
@@ -1373,7 +1327,7 @@ def procfile(f):
   if pc(f) == '=': # don't check exact number f.outf '=' here jem.
     t = br(nl(f), f)[:-1]
     if title is None:
-      title = re.sub(' *(<br />)|(&nbsp;) *', ' ', t)
+      title = re.sub(' *(<br>)|(&nbsp;) *', ' ', t)
   else:
     t = None
 
@@ -1411,20 +1365,20 @@ def procfile(f):
       break
 
     elif p == '\\(':
-      if not (f.eqs and f.eqsupport):
+      if not f.eqs:
         break
 
       s = nl(f)
       # Quickly pull out the equation here:
       # Check we don't already have the terminating character in a whole-line
       # equation without linebreaks, eg \( Ax=b \):
-      if not s.strip().endswith('\)'):
+      if not s.strip().endswith(r'\)'):
         while True:
           l = nl(f, codemode=True)
           if not l:
             break
           s += l
-          if l.strip() == '\)':
+          if l.strip() == r'\)':
             break
       r = br(s.strip(), f)
       r = mathjaxeqresub(r)
@@ -1533,7 +1487,7 @@ def procfile(f):
           out(f.outf, ' />')
           if g[6]:
             out(f.outf, '</a>')
-          out(f.outf, '&nbsp;</td>\n<td align="left">')
+          out(f.outf, '&nbsp;</td>\n<td>')
           imgblock = True
 
         else:
@@ -1627,8 +1581,8 @@ def main():
     else:
       thisout = outname
 
-    infile = io.open(inname, 'rb')
-    outfile = io.open(thisout, 'w')
+    infile = open(inname, 'rb')
+    outfile = open(thisout, 'w')
 
 #    print(infile.read())
     f = controlstruct(infile, outfile, conf, inname)
