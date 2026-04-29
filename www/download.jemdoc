@@ -9,7 +9,7 @@ git clone https://github.com/cvxgrp/jemdoc-cvx.git
 ~~~
 
 The single executable script is +./jemdoc+ at the repo root. It uses only the
-Python standard library, so any Python 3.11+ interpreter is enough to run it.
+Python standard library, so any Python 3.11\+ interpreter is enough to run it.
 You can put it on your +PATH+ directly:
 
 ~~~

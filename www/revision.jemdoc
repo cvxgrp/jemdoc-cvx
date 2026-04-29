@@ -27,7 +27,7 @@ and the iconic visual look of generated pages.
   PNG-rendering path (+geneq+) and its +addpackage+, +addtex+, +eqsize+, and
   +eqdir+ modelines have been removed---they were broken on Python 3 and
   unused in MathJax mode.
-. *Python 3.11+ only.* All Python 2 compatibility scaffolding is gone, the
+. *Python 3.11\+ only.* All Python 2 compatibility scaffolding is gone, the
   vendored +latexmath2png.py+ helper is deleted, regex literals are now raw
   strings (no more +SyntaxWarning+), and subprocess calls drop +shell=True+
   except for the one user-supplied codeblock filter.
@@ -37,7 +37,7 @@ and the iconic visual look of generated pages.
 
 == Earlier history
 Version history before 1.0 (the original jemdoc 0.1--0.7.3 by Jacob
-Mattingley, then jemdoc+MathJax by Wonseok Shin) is preserved in the git
+Mattingley, then jemdoc\+MathJax by Wonseok Shin) is preserved in the git
 log of this repository. See
 [https://github.com/cvxgrp/jemdoc-cvx/commits the GitHub commit history]
 or run +git log --reverse+ in a clone.

@@ -164,7 +164,7 @@ def showhelp():
 
     jemdoc --version
 
-  See http://jemdoc.jaboc.net/ for many more details."""
+  See https://www.cvxgrp.org/jemdoc-cvx/index.html for many more details."""
     b = ""
     for l in a.splitlines(True):
         if l.startswith(" " * 4):
@@ -181,7 +181,7 @@ def standardconf():
   <html lang="en">
   <head>
   <meta charset="utf-8">
-  <meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/">
+  <meta name="generator" content="jemdoc, see https://www.cvxgrp.org/jemdoc-cvx/index.html">
 
   [defaultcss]
   <link rel="stylesheet" href="jemdoc.css">
@@ -298,7 +298,7 @@ def standardconf():
   </div>
 
   [lastupdated]
-  Page generated |, by <a href="https://github.com/wsshin/jemdoc_mathjax" target="blank">jemdoc+MathJax</a>.
+  Page generated |, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
 
   [sourcelink]
   (<a href="|">source</a>)

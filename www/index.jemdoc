@@ -10,9 +10,9 @@ the main differences are that jemdoc is simpler (deliberately feature-poor)
 and has more consistent syntax.
 
 This is *jemdoc-cvx*, a modernized fork of jemdoc and
-[https://github.com/wsshin/jemdoc_mathjax jemdoc+MathJax]. The +.jemdoc+
+[https://github.com/wsshin/jemdoc_mathjax jemdoc\+MathJax]. The +.jemdoc+
 input format is unchanged and the iconic look is preserved, but the tool
-itself is rewritten for a modern stack: HTML5 output, CSS3, Python 3.11+,
+itself is rewritten for a modern stack: HTML5 output, CSS3, Python 3.11\+,
 and server-side equation rendering with [https://katex.org/ KaTeX]. See
 the [download.html download page] to get started or the
 [revision.html revision notes] for what changed.
@@ -21,7 +21,7 @@ the [download.html download page] to get started or the
 
 == Goals
 - Simple, consistent syntax.
-- $\mbox{\LaTeX}$ [latex.html equation support], rendered server-side.
+- $\LaTeX$ [latex.html equation support], rendered server-side.
 - [tables.html Table support].
 - Portability. A single executable +jemdoc+ script (Python stdlib only) \+
   a single CSS file \+ your input file {{&rarr;}} html.

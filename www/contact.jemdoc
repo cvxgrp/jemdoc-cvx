@@ -1,13 +1,14 @@
 # jemdoc: menu{MENU}{contact.html}
-= jemdoc -- contact details
+= jemdoc-cvx -- contact
 
-== Development
-jemdoc is developed by [http://stanford.edu/~jacobm/ Jacob Mattingley].
-Please [jacobm@stanford.edu contact Jacob] with any bug reports and
-comments.
-If reporting a bug, please run the command +jemdoc -\-version+ and include the
-result in your email.
+Bug reports, feature requests, and questions belong on the GitHub issue tracker:
+[https://github.com/cvxgrp/jemdoc-cvx/issues/new https://github.com/cvxgrp/jemdoc-cvx/issues].
 
-There are two levels of support:
-- Basic jemdoc, which I will attempt to support well, and
-- LaTeX equations in jemdoc, which I may attempt to support.
+When filing a bug, please include the output of
+
+~~~
+{}{}
+jemdoc --version
+~~~
+
+so the platform, Python version, and KaTeX availability are clear.
