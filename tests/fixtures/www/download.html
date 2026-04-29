@@ -28,8 +28,8 @@ _gaq.push(['_trackPageview']);
 <div class="menu-item"><a href="contact.html">contact</a></div>
 <div class="menu-category">user's guide</div>
 <div class="menu-item"><a href="using.html">running&nbsp;jemdoc</a></div>
+<div class="menu-item"><a href="syntax.html">syntax</a></div>
 <div class="menu-item"><a href="example.html">example&nbsp;page</a></div>
-<div class="menu-item"><a href="cheatsheet.html">cheat&nbsp;sheet</a></div>
 <div class="menu-item"><a href="extra.html">extra&nbsp;syntax</a></div>
 <div class="menu-category">configuration</div>
 <div class="menu-item"><a href="htmlchanges.html">html&nbsp;changes</a></div>
@@ -44,46 +44,141 @@ _gaq.push(['_trackPageview']);
 <div id="toptitle">
 <h1>jemdoc-cvx &ndash; download</h1>
 </div>
-<p>jemdoc-cvx is distributed as source on GitHub:
+<h2>Get the bundle</h2>
+<p>The easiest way to install jemdoc-cvx is to grab the latest release archive
+from GitHub:
+</p>
+<p><a href="https://github.com/cvxgrp/jemdoc-cvx/releases/latest" target=&ldquo;blank&rdquo;>GitHub releases</a>
+</p>
+<p>Each release ships a <code>.tar.gz</code> and a <code>.zip</code>, both containing:
+</p>
+<ul>
+<li><p>the <code>jemdoc</code> executable script
+</p>
+</li>
+<li><p>the default theme stylesheet (<code>jemdoc-cvx.css</code>) and its three woff2 font
+files (Source Serif 4, JetBrains Mono)
+</p>
+</li>
+<li><p>the legacy theme <code>jemdoc.css</code> plus theme variants (<code>jacob.css</code>, <code>white.css</code>,
+<code>green.css</code>, <code>exp.css</code>, <code>prob.css</code>, <code>page.css</code>, <code>nolines.css</code>)
+</p>
+</li>
+<li><p>a minimal <code>package.json</code> for the optional KaTeX install
+</p>
+</li>
+<li><p>the <code>LICENSE</code> and a copy of the project <code>README.md</code>
+</p>
+</li>
+</ul>
+<p>Unpack and try it out:
 </p>
 <div class="codeblock">
 <div class="blockcontent"><pre>
-git clone https://github.com/cvxgrp/jemdoc-cvx.git
+tar -xzf jemdoc-cvx-1.0.0.tar.gz
+cd jemdoc-cvx-1.0.0
+./jemdoc --version
 </pre></div></div>
-<p>The single executable script is <code>./jemdoc</code> at the repo root. It uses only the
-Python standard library, so any Python 3.11+ interpreter is enough to run it.
-You can put it on your <code>PATH</code> directly:
+<p>The single executable script is <code>./jemdoc</code>. It uses only the Python standard
+library, so any Python 3.11+ interpreter is enough to run it. To make it
+available system-wide:
 </p>
 <div class="codeblock">
 <div class="blockcontent"><pre>
 sudo install ./jemdoc /usr/local/bin/jemdoc
 </pre></div></div>
-<p>For server-side equation rendering, also install Node.js and the pinned KaTeX
-CLI from this repo:
+<h2>Or clone the repository</h2>
+<p>If you would prefer to track the source (or contribute), clone instead:
 </p>
 <div class="codeblock">
 <div class="blockcontent"><pre>
+git clone https://github.com/cvxgrp/jemdoc-cvx.git
+</pre></div></div>
+<p>The repository layout matches the bundle: <code>.<i>jemdoc</code> at the root, themes and
+fonts under <code>css</i></code>, the documentation site source under <code>www/</code>. Everything
+needed to run the tool ships in either form.
+</p>
+<h2>Optional: KaTeX for server-side equation rendering</h2>
+<p>If your pages contain LaTeX equations (<code>$inline$</code> or <code>\(display\)</code>
+blocks), install the pinned KaTeX CLI so jemdoc-cvx can render the math at
+build time and embed the resulting HTML directly in each page. Install KaTeX
+<b>once on the machine where you build the site</b> — typically your laptop, or
+your faculty webserver if you build there. KaTeX is <i>not</i> needed on whichever
+machine actually serves the resulting html.
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+cd /path/to/jemdoc-cvx-1.0.0
 npm install
 </pre></div></div>
-<p>If <code>katex</code> is not on <code>PATH</code>, jemdoc falls back to emitting raw <code>\(..\)</code> /
-<code>\<a href="..\" target=&ldquo;blank&rdquo;>..\</a></code> delimiters that a client-side script (e.g. MathJax loaded via a
-conf override) can render in the browser.
+<p>This places the <code>katex</code> binary at <code>.<i>node_modules</i>.bin/katex</code>, which jemdoc
+discovers automatically. Cached output goes in a <code>katexcache/</code> directory
+next to your sources, so subsequent builds reuse it.
 </p>
-<h2>CSS</h2>
-<p>Stylesheets live in <a href="../css/"><code>css/</code></a> in the repo. <code>jemdoc.css</code> is the
-default; <code>jacob.css</code>, <code>white.css</code>, <code>green.css</code>, <code>exp.css</code>, and a few others
-are provided as alternative themes. Copy whichever one you want next to your
-output html, or load it from a conf file via the <code>[defaultcss]</code> block.
+<p>If you skip this step or <code>katex</code> is not on <code>PATH</code>, jemdoc-cvx falls back to
+emitting raw <code>\(..\)</code> / <code>\<a href="..\" target=&ldquo;blank&rdquo;>..\</a></code> delimiters that a client-side script
+(e.g. MathJax loaded via a <a href="htmlchanges.html" target=&ldquo;blank&rdquo;>conf override</a>) can render in
+the browser. See <a href="latex.html" target=&ldquo;blank&rdquo;>latex equations</a> for details.
+</p>
+<h2>Building an academic website</h2>
+<p>A canonical academic page (homepage, publications, teaching, CV) is just a
+handful of <code>.jemdoc</code> files alongside a <code>MENU</code> file and the theme assets.
+Recommended layout:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+mysite/
+    MENU                  # sidebar menu, listed once
+    index.jemdoc          # one .jemdoc per page
+    publications.jemdoc
+    teaching.jemdoc
+    cv.jemdoc
+    jemdoc-cvx.css        # the default theme stylesheet
+    fonts/                # the woff2 files referenced by the theme
+        source-serif-4-latin-wght-normal.woff2
+        source-serif-4-latin-wght-italic.woff2
+        jetbrains-mono-latin-wght-normal.woff2
+    papers/               # PDFs and other static assets, served as-is
+        mypaper.pdf
+</pre></div></div>
+<p>To bootstrap, copy the theme out of the unpacked release bundle (or the
+cloned repo) and start writing pages:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+mkdir mysite &amp;&amp; cd mysite
+cp /path/to/jemdoc-cvx-1.0.0/css/jemdoc-cvx.css .
+cp -r /path/to/jemdoc-cvx-1.0.0/css/fonts .
+# write your .jemdoc sources, plus a MENU file, then build all pages:
+/path/to/jemdoc-cvx-1.0.0/jemdoc *.jemdoc
+</pre></div></div>
+<p>By default jemdoc writes <code>index.html</code> next to <code>index.jemdoc</code>, etc. To send
+the output into a separate directory:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+mkdir build
+/path/to/jemdoc-cvx-1.0.0/jemdoc -o build/ *.jemdoc
+cp jemdoc-cvx.css build/
+cp -r fonts build/
+</pre></div></div>
+<p>Then point your webserver (Apache, nginx, GitHub Pages, whatever your
+department uses) at the directory containing the rendered <code>.html</code> files. The
+output is plain static html — no Python, Node, or other runtime is needed
+to serve it.
 </p>
 <h2>Where to next?</h2>
-<p>Read about <a href="using.html" target=&ldquo;blank&rdquo;>how to use jemdoc</a>, check out an <a href="example.html" target=&ldquo;blank&rdquo;>example
-page</a>, then refer to the <a href="cheatsheet.html" target=&ldquo;blank&rdquo;>cheat sheet</a> once you're underway.
-You can also study the <a href="index.jemdoc" target=&ldquo;blank&rdquo;>source of this index page</a> as a starting
+<p>Read <a href="using.html" target=&ldquo;blank&rdquo;>running jemdoc</a> for the full set of command-line options,
+modelines, and theme switching. The <a href="syntax.html" target=&ldquo;blank&rdquo;>syntax reference</a> documents
+the markup language itself; an <a href="example.html" target=&ldquo;blank&rdquo;>example page</a> shows source and
+rendered output side by side.
+</p>
+<p>You can also study the <a href="index.jemdoc" target=&ldquo;blank&rdquo;>source of this index page</a> as a starting
 point.
 </p>
 <div id="footer">
 <div id="footer-text">
-Page generated 2026-04-29 09:27:01 PDT, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
+Page generated 2026-04-29 10:22:29 PDT, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
 </div>
 </div>
 </main>

@@ -1,42 +1,135 @@
 # jemdoc: menu{MENU}{download.html}
 = jemdoc-cvx -- download
 
-jemdoc-cvx is distributed as source on GitHub:
+== Get the bundle
+
+The easiest way to install jemdoc-cvx is to grab the latest release archive
+from GitHub:
+
+[https://github.com/cvxgrp/jemdoc-cvx/releases/latest GitHub releases]
+
+Each release ships a +.tar.gz+ and a +.zip+, both containing:
+
+- the +jemdoc+ executable script
+- the default theme stylesheet (+jemdoc-cvx.css+) and its three woff2 font
+  files (Source Serif 4, JetBrains Mono)
+- the legacy theme +jemdoc.css+ plus theme variants (+jacob.css+, +white.css+,
+  +green.css+, +exp.css+, +prob.css+, +page.css+, +nolines.css+)
+- a minimal +package.json+ for the optional KaTeX install
+- the +LICENSE+ and a copy of the project +README.md+
+
+Unpack and try it out:
 
 ~~~
 {}{}
-git clone https://github.com/cvxgrp/jemdoc-cvx.git
+tar -xzf jemdoc-cvx-1.0.0.tar.gz
+cd jemdoc-cvx-1.0.0
+./jemdoc --version
 ~~~
 
-The single executable script is +./jemdoc+ at the repo root. It uses only the
-Python standard library, so any Python 3.11\+ interpreter is enough to run it.
-You can put it on your +PATH+ directly:
+The single executable script is +./jemdoc+. It uses only the Python standard
+library, so any Python 3.11\+ interpreter is enough to run it. To make it
+available system-wide:
 
 ~~~
 {}{}
 sudo install ./jemdoc /usr/local/bin/jemdoc
 ~~~
 
-For server-side equation rendering, also install Node.js and the pinned KaTeX
-CLI from this repo:
+== Or clone the repository
+
+If you would prefer to track the source (or contribute), clone instead:
 
 ~~~
 {}{}
+git clone https://github.com/cvxgrp/jemdoc-cvx.git
+~~~
+
+The repository layout matches the bundle: +./jemdoc+ at the root, themes and
+fonts under +css/+, the documentation site source under +www/+. Everything
+needed to run the tool ships in either form.
+
+== Optional: KaTeX for server-side equation rendering
+
+If your pages contain LaTeX equations (+\$inline\$+ or +\\(display\\)+
+blocks), install the pinned KaTeX CLI so jemdoc-cvx can render the math at
+build time and embed the resulting HTML directly in each page. Install KaTeX
+*once on the machine where you build the site* — typically your laptop, or
+your faculty webserver if you build there. KaTeX is /not/ needed on whichever
+machine actually serves the resulting html.
+
+~~~
+{}{}
+cd /path/to/jemdoc-cvx-1.0.0
 npm install
 ~~~
 
-If +katex+ is not on +PATH+, jemdoc falls back to emitting raw +\\(..\\)+ /
-+\\[..\\]+ delimiters that a client-side script (e.g. MathJax loaded via a
-conf override) can render in the browser.
+This places the +katex+ binary at +./node_modules/.bin/katex+, which jemdoc
+discovers automatically. Cached output goes in a +katexcache\/+ directory
+next to your sources, so subsequent builds reuse it.
 
-== CSS
-Stylesheets live in [/../css/ +css/+] in the repo. +jemdoc.css+ is the
-default; +jacob.css+, +white.css+, +green.css+, +exp.css+, and a few others
-are provided as alternative themes. Copy whichever one you want next to your
-output html, or load it from a conf file via the +\[defaultcss\]+ block.
+If you skip this step or +katex+ is not on +PATH+, jemdoc-cvx falls back to
+emitting raw +\\(..\\)+ / +\\[..\\]+ delimiters that a client-side script
+(e.g. MathJax loaded via a [htmlchanges.html conf override]) can render in
+the browser. See [latex.html latex equations] for details.
+
+== Building an academic website
+
+A canonical academic page (homepage, publications, teaching, CV) is just a
+handful of +.jemdoc+ files alongside a +MENU+ file and the theme assets.
+Recommended layout:
+
+~~~
+{}{}
+mysite/
+    MENU                  # sidebar menu, listed once
+    index.jemdoc          # one .jemdoc per page
+    publications.jemdoc
+    teaching.jemdoc
+    cv.jemdoc
+    jemdoc-cvx.css        # the default theme stylesheet
+    fonts/                # the woff2 files referenced by the theme
+        source-serif-4-latin-wght-normal.woff2
+        source-serif-4-latin-wght-italic.woff2
+        jetbrains-mono-latin-wght-normal.woff2
+    papers/               # PDFs and other static assets, served as-is
+        mypaper.pdf
+~~~
+
+To bootstrap, copy the theme out of the unpacked release bundle (or the
+cloned repo) and start writing pages:
+
+~~~
+{}{}
+mkdir mysite && cd mysite
+cp /path/to/jemdoc-cvx-1.0.0/css/jemdoc-cvx.css .
+cp -r /path/to/jemdoc-cvx-1.0.0/css/fonts .
+# write your .jemdoc sources, plus a MENU file, then build all pages:
+/path/to/jemdoc-cvx-1.0.0/jemdoc *.jemdoc
+~~~
+
+By default jemdoc writes +index.html+ next to +index.jemdoc+, etc. To send
+the output into a separate directory:
+
+~~~
+{}{}
+mkdir build
+/path/to/jemdoc-cvx-1.0.0/jemdoc -o build/ *.jemdoc
+cp jemdoc-cvx.css build/
+cp -r fonts build/
+~~~
+
+Then point your webserver (Apache, nginx, GitHub Pages, whatever your
+department uses) at the directory containing the rendered +.html+ files. The
+output is plain static html — no Python, Node, or other runtime is needed
+to serve it.
 
 == Where to next?
-Read about [using.html how to use jemdoc], check out an [example.html example
-page], then refer to the [cheatsheet.html cheat sheet] once you're underway.
+
+Read [using.html running jemdoc] for the full set of command-line options,
+modelines, and theme switching. The [syntax.html syntax reference] documents
+the markup language itself; an [example.html example page] shows source and
+rendered output side by side.
+
 You can also study the [index.jemdoc source of this index page] as a starting
 point.

@@ -1,0 +1,37 @@
+name: CI
+
+# Runs the regression-fixture test suite and the ruff lint pass on every push
+# to main and every pull request. KaTeX is installed because fixtures for
+# equation-bearing pages (latex.jemdoc, mathjax.jemdoc) include the rendered
+# KaTeX HTML and the byte-equality assertion requires reproducing it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v4
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dev dependencies (pytest, ruff)
+        run: uv sync
+
+      - name: Install KaTeX (pinned in package.json)
+        run: npm install
+
+      - name: Run regression fixtures
+        run: make test
+
+      - name: Run ruff
+        run: make lint

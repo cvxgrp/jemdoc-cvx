@@ -1,6 +1,6 @@
 JEMDOC ?= $(realpath ../jemdoc)
 
-DOCS=index cheatsheet contact download revision using menu stuff extra example modelines htmlchanges latex tables
+DOCS=index syntax contact download revision using menu stuff extra example modelines htmlchanges latex tables
 
 HDOCS=$(addsuffix .html, $(DOCS))
 PHDOCS=$(addprefix html/, $(HDOCS))

@@ -14,8 +14,8 @@ the `page' on the left is consequently incorrect.)
 ~~~
 # jemdoc: menu{MENU}{example.html}
 = jemdoc -- example page
-[http://stanford.edu/~jacobm/ Jacob Mattingley]
-([jacobm@stanford.edu])
+[http://example.edu/~jdoe/ Jane Doe]
+([jdoe@example.edu])
 
 ~~~
 {}{raw}
@@ -26,8 +26,8 @@ the `page' on the left is consequently incorrect.)
 {}{jemdoc}
 # jemdoc: menu{MENU}{example.html}
 = jemdoc -- example page
-[http://stanford.edu/~jacobm/ Jacob Mattingley]
-([jacobm@stanford.edu])
+[http://example.edu/~jdoe/ Jane Doe]
+([jdoe@example.edu])
 
 ~~~
 ~~~
@@ -81,7 +81,7 @@ I could write special characters like
 \#, \$ and \+ by just using a backslash
 (\\) in front of those characters.  Or
 automatically detect an
-[jacobm@stanford.edu email address].
+[jdoe@example.edu email address].
 
 ~~~
 {}{raw}
@@ -94,7 +94,7 @@ I could write special characters like
 \#, \$ and \+ by just using a backslash
 (\\) in front of those characters.  Or
 automatically detect an
-[jacobm@stanford.edu email address].
+[jdoe@example.edu email address].
 
 ~~~
 ~~~

@@ -14,8 +14,8 @@ jemdoc
     contact             [contact.html]
 
 user's guide
-    cheat sheet         [cheatsheet.html]
     using               [using.html]
+    syntax              [syntax.html]
 
 goodies
     add a menu          [menu.html]

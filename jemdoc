@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""jemdoc-cvx version 1.0.0, modernized fork of jemdoc+MathJax (Python 3.11+)."""
+"""jemdoc-cvx, a modernized fork of jemdoc+MathJax (Python 3.11+)."""
+
+__version__ = "1.0.0"
 
 # Copyright (C) 2007-2012 Jacob Mattingley (jacobm@stanford.edu).
 #
@@ -52,6 +54,7 @@ KATEX_PATH = find_katex()
 
 
 def info():
+    print(f"jemdoc-cvx {__version__}")
     print(__doc__)
     print("Platform: " + sys.platform + ".")
     print(f"Python: {sys.version.split()[0]}, located at {sys.executable}.")

@@ -1,0 +1,84 @@
+name: Release
+
+# Triggered by pushing a tag of the form `vX.Y.Z`. Builds a self-contained
+# bundle (the jemdoc script + CSS + fonts + a minimal package.json so users
+# can `npm install` KaTeX from inside the bundle) and attaches it to a
+# GitHub Release.
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Verify version is consistent across files
+        # Fails fast if the tag, jemdoc.__version__, pyproject.toml, and
+        # package.json drift apart. Run `make bump-version VERSION=X.Y.Z`
+        # locally before tagging to keep them in lockstep.
+        run: |
+          set -euo pipefail
+          TAG="${{ steps.version.outputs.version }}"
+          SCRIPT=$(grep -E '^__version__ = ' jemdoc | sed -E 's/^__version__ = "(.+)"$/\1/')
+          TOML=$(grep -E '^version = ' pyproject.toml | head -1 | sed -E 's/^version = "(.+)"$/\1/')
+          JSON=$(grep -oE '"version": "[^"]*"' package.json | head -1 | sed -E 's/"version": "(.+)"/\1/')
+          echo "tag=$TAG  jemdoc=$SCRIPT  pyproject.toml=$TOML  package.json=$JSON"
+          for v in "$SCRIPT" "$TOML" "$JSON"; do
+            if [ "$v" != "$TAG" ]; then
+              echo "::error::version mismatch: tag is $TAG but at least one file is $v"
+              exit 1
+            fi
+          done
+
+      - name: Stage release bundle
+        run: |
+          set -euo pipefail
+          BUNDLE="jemdoc-cvx-${{ steps.version.outputs.version }}"
+          mkdir -p "$BUNDLE/css/fonts"
+          cp jemdoc LICENSE README.md "$BUNDLE/"
+          cp css/*.css "$BUNDLE/css/"
+          cp css/fonts/*.woff2 "$BUNDLE/css/fonts/"
+          chmod +x "$BUNDLE/jemdoc"
+
+          # Minimal package.json so `npm install` inside the bundle directory
+          # installs only the runtime KaTeX CLI (the fonts are already shipped).
+          cat > "$BUNDLE/package.json" <<EOF
+          {
+            "name": "jemdoc-cvx-katex",
+            "version": "${{ steps.version.outputs.version }}",
+            "description": "Pinned KaTeX dependency for jemdoc-cvx server-side equation rendering. Run 'npm install' from this directory to install katex into node_modules/.bin.",
+            "private": true,
+            "dependencies": {
+              "katex": "0.16.11"
+            }
+          }
+          EOF
+
+          tar --owner=0 --group=0 -czf "$BUNDLE.tar.gz" "$BUNDLE"
+          (cd "$BUNDLE/.." && zip -rq "$BUNDLE.zip" "$BUNDLE")
+
+      - name: Compute checksums
+        run: |
+          BUNDLE="jemdoc-cvx-${{ steps.version.outputs.version }}"
+          sha256sum "$BUNDLE.tar.gz" "$BUNDLE.zip" > "$BUNDLE.sha256"
+          cat "$BUNDLE.sha256"
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          name: jemdoc-cvx ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: |
+            jemdoc-cvx-${{ steps.version.outputs.version }}.tar.gz
+            jemdoc-cvx-${{ steps.version.outputs.version }}.zip
+            jemdoc-cvx-${{ steps.version.outputs.version }}.sha256

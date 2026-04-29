@@ -23,7 +23,7 @@ FIXTURES = REPO / "tests" / "fixtures"
 EXAMPLE_INPUTS = ["link", "mathjax", "underscore"]
 WWW_INPUTS = [
     "index",
-    "cheatsheet",
+    "syntax",
     "contact",
     "download",
     "revision",

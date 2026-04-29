@@ -6,8 +6,8 @@ jemdoc
 
 user's guide
     running jemdoc      [using.html]
+    syntax              [syntax.html]
     example page        [example.html]
-    cheat sheet         [cheatsheet.html]
     extra syntax        [extra.html]
 
 configuration
