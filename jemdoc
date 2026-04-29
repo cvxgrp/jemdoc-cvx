@@ -32,103 +32,112 @@ import sys
 import time
 from subprocess import PIPE, Popen
 
-KATEX_VERSION = '0.16.11'
+KATEX_VERSION = "0.16.11"
+
 
 def find_katex():
-  """Returns the path to the katex CLI, or None if not installed.
+    """Returns the path to the katex CLI, or None if not installed.
 
-  Prefers a local install (./node_modules/.bin/katex) over a system one so
-  that the pinned KATEX_VERSION wins.
-  """
-  here = os.path.dirname(os.path.abspath(__file__))
-  local = os.path.join(here, 'node_modules', '.bin', 'katex')
-  if os.access(local, os.X_OK):
-    return local
-  return shutil.which('katex')
+    Prefers a local install (./node_modules/.bin/katex) over a system one so
+    that the pinned KATEX_VERSION wins.
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    local = os.path.join(here, "node_modules", ".bin", "katex")
+    if os.access(local, os.X_OK):
+        return local
+    return shutil.which("katex")
+
 
 KATEX_PATH = find_katex()
 
+
 def info():
-  print(__doc__)
-  print('Platform: ' + sys.platform + '.')
-  print('Python: %s, located at %s.' % (sys.version.split()[0], sys.executable))
-  if KATEX_PATH:
-    print('KaTeX: %s.' % KATEX_PATH)
-  else:
-    print('KaTeX: not found (server-side equation rendering disabled; falls back to client-side MathJax via conf overrides).')
+    print(__doc__)
+    print("Platform: " + sys.platform + ".")
+    print(f"Python: {sys.version.split()[0]}, located at {sys.executable}.")
+    if KATEX_PATH:
+        print(f"KaTeX: {KATEX_PATH}.")
+    else:
+        print(
+            "KaTeX: not found (server-side equation rendering disabled; falls back to client-side MathJax via conf overrides)."
+        )
+
 
 class controlstruct:
-  def __init__(self, infile, outfile=None, conf=None, inname=None, eqs=True):
-    self.inname = inname
-    self.inf = infile
-    self.outf = outfile
-    self.conf = conf
-    self.linenum = 0
-    self.otherfiles = []
-    self.eqs = eqs
-    self.analytics = None
-    # Phase 5: server-side KaTeX rendering. Set to True when the first
-    # equation is rendered so the page header can include katex.min.css.
-    self.has_equations = False
-    self.katexcache_dir = 'katexcache'
+    def __init__(self, infile, outfile=None, conf=None, inname=None, eqs=True):
+        self.inname = inname
+        self.inf = infile
+        self.outf = outfile
+        self.conf = conf
+        self.linenum = 0
+        self.otherfiles = []
+        self.eqs = eqs
+        self.analytics = None
+        # Phase 5: server-side KaTeX rendering. Set to True when the first
+        # equation is rendered so the page header can include katex.min.css.
+        self.has_equations = False
+        self.katexcache_dir = "katexcache"
 
-  def pushfile(self, newfile):
-    self.otherfiles.insert(0, self.inf)
-    # Binary mode is required because pc() relies on seek(-1, 1), which is
-    # undefined for text-mode files. Reads decode bytes -> str at the call site.
-    self.inf = open(newfile, 'rb')
+    def pushfile(self, newfile):
+        self.otherfiles.insert(0, self.inf)
+        # The included file's lifetime spans pushfile -> nextfile across many
+        # parser calls, so a `with` block isn't structurally appropriate here.
+        # Binary mode is required because pc() relies on seek(-1, 1), which is
+        # undefined for text-mode files; reads decode bytes -> str at call sites.
+        self.inf = open(newfile, "rb")  # noqa: SIM115
 
-  def nextfile(self):
-    self.inf.close()
-    self.inf = self.otherfiles.pop(0)
+    def nextfile(self):
+        self.inf.close()
+        self.inf = self.otherfiles.pop(0)
 
 
 def genkatexeq(f, eq, displaymode):
-  """Render a TeX expression to KaTeX HTML, with a filesystem cache.
+    """Render a TeX expression to KaTeX HTML, with a filesystem cache.
 
-  The cache is keyed by sha256(eq + displaymode + KATEX_VERSION) so that a
-  KaTeX version bump invalidates everything cleanly. Cache entries are tiny
-  HTML files in ``katexcache/<hash>.html``.
+    The cache is keyed by sha256(eq + displaymode + KATEX_VERSION) so that a
+    KaTeX version bump invalidates everything cleanly. Cache entries are tiny
+    HTML files in ``katexcache/<hash>.html``.
 
-  Falls back to raw \\(...\\)/\\[...\\] markers (the pre-Phase-5 behavior) if
-  the katex CLI is not installed; in that mode the output matches what
-  client-side MathJax expects when its script is loaded via a conf override.
-  """
-  if not KATEX_PATH:
+    Falls back to raw \\(...\\)/\\[...\\] markers (the pre-Phase-5 behavior) if
+    the katex CLI is not installed; in that mode the output matches what
+    client-side MathJax expects when its script is loaded via a conf override.
+    """
+    if not KATEX_PATH:
+        if displaymode:
+            return "\\[" + eq + "\\]"
+        return "\\(" + eq + "\\)"
+
+    key_input = (eq + "|" + str(displaymode) + "|" + KATEX_VERSION).encode("utf-8")
+    key = hashlib.sha256(key_input).hexdigest()
+    cache_path = os.path.join(f.katexcache_dir, key + ".html")
+
+    if os.path.exists(cache_path):
+        with open(cache_path, encoding="utf-8") as cf:
+            return cf.read()
+
+    cmd = [KATEX_PATH, "--no-throw-on-error"]
     if displaymode:
-      return '\\[' + eq + '\\]'
-    return '\\(' + eq + '\\)'
+        cmd.append("--display-mode")
+    result = subprocess.run(cmd, input=eq, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        sys.stderr.write(f"katex error rendering {eq!r}:\n{result.stderr}\n")
+        # Fall back to the raw delimiters; client-side MathJax can still pick it up
+        # if the page conf includes its script.
+        if displaymode:
+            return "\\[" + eq + "\\]"
+        return "\\(" + eq + "\\)"
 
-  key_input = (eq + '|' + str(displaymode) + '|' + KATEX_VERSION).encode('utf-8')
-  key = hashlib.sha256(key_input).hexdigest()
-  cache_path = os.path.join(f.katexcache_dir, key + '.html')
+    rendered = result.stdout.rstrip("\n")
 
-  if os.path.exists(cache_path):
-    with open(cache_path, encoding='utf-8') as cf:
-      return cf.read()
+    os.makedirs(f.katexcache_dir, exist_ok=True)
+    with open(cache_path, "w", encoding="utf-8") as cf:
+        cf.write(rendered)
 
-  cmd = [KATEX_PATH, '--no-throw-on-error']
-  if displaymode:
-    cmd.append('--display-mode')
-  result = subprocess.run(cmd, input=eq, capture_output=True, text=True, check=False)
-  if result.returncode != 0:
-    sys.stderr.write('katex error rendering %r:\n%s\n' % (eq, result.stderr))
-    # Fall back to the raw delimiters; client-side MathJax can still pick it up
-    # if the page conf includes its script.
-    if displaymode:
-      return '\\[' + eq + '\\]'
-    return '\\(' + eq + '\\)'
+    return rendered
 
-  rendered = result.stdout.rstrip('\n')
-
-  os.makedirs(f.katexcache_dir, exist_ok=True)
-  with open(cache_path, 'w', encoding='utf-8') as cf:
-    cf.write(rendered)
-
-  return rendered
 
 def showhelp():
-  a = """Usage: jemdoc [OPTIONS] [SOURCEFILE] 
+    a = """Usage: jemdoc [OPTIONS] [SOURCEFILE]
   Produces html markup from a jemdoc SOURCEFILE.
 
   Most of the time you can use jemdoc without any additional flags.
@@ -149,24 +158,25 @@ def showhelp():
   overwritten by including them in a configuration file, and running,
   for example,
 
-    jemdoc -c mywebsite.conf index.jemdoc 
+    jemdoc -c mywebsite.conf index.jemdoc
 
   You can view version and installation details with
 
     jemdoc --version
 
   See http://jemdoc.jaboc.net/ for many more details."""
-  b = ''
-  for l in a.splitlines(True):
-    if l.startswith(' '*4):
-      b += l[4:]
-    else:
-      b += l
+    b = ""
+    for l in a.splitlines(True):
+        if l.startswith(" " * 4):
+            b += l[4:]
+        else:
+            b += l
 
-  print(b)
+    print(b)
+
 
 def standardconf():
-  a = """[firstbit]
+    a = """[firstbit]
   <!DOCTYPE html>
   <html lang="en">
   <head>
@@ -178,7 +188,7 @@ def standardconf():
 
   [katexcss]
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous">
-  
+
   [windowtitle]
   # used in header for window title.
   <title>|</title>
@@ -188,22 +198,22 @@ def standardconf():
 
   [fwtitleend]
   </div>
-  
+
   [doctitle]
   # used at top of document.
   <div id="toptitle">
   <h1>|</h1>
-  
+
   [subtitle]
   <div id="subtitle">|</div>
-  
+
   [doctitleend]
   </div>
-  
+
   [bodystart]
   </head>
   <body>
-  
+
   [analytics]
   <script>
   var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
@@ -214,7 +224,7 @@ def standardconf():
       var pageTracker = _gat._getTracker("|");
       pageTracker._trackPageview();
   } catch(err) {}</script>
-  
+
   [menustart]
   <div id="tlayout">
   <nav id="layout-menu">
@@ -247,46 +257,46 @@ def standardconf():
 
   [nomenulastbit]
   </main>
-  
+
   [bodyend]
   </body>
   </html>
-  
+
   [infoblock]
   <div class="infoblock">
-  
+
   [codeblock]
   <div class="codeblock">
-  
+
   [blocktitle]
   <div class="blocktitle">|</div>
-  
+
   [infoblockcontent]
   <div class="blockcontent">
-  
+
   [codeblockcontent]
   <div class="blockcontent"><pre>
-  
+
   [codeblockend]
   </pre></div></div>
-  
+
   [codeblockcontenttt]
   <div class="blockcontent"><code class="tthl">
 
   [codeblockendtt]
   </code></div></div>
-  
+
   [infoblockend]
   </div></div>
-  
+
   [footerstart]
   <div id="footer">
   <div id="footer-text">
-  
+
   [footerend]
   </div>
   </div>
-  
+
   [lastupdated]
   Page generated |, by <a href="https://github.com/wsshin/jemdoc_mathjax" target="blank">jemdoc+MathJax</a>.
 
@@ -294,1300 +304,1425 @@ def standardconf():
   (<a href="|">source</a>)
 
   """
-  b = ''
-  for l in a.splitlines(True):
-    if l.startswith('  #'):
-        continue
-    elif l.startswith('  '):
-      b += l[2:]
-    else:
-      b += l
+    b = ""
+    for l in a.splitlines(True):
+        if l.startswith("  #"):
+            continue
+        elif l.startswith("  "):
+            b += l[2:]
+        else:
+            b += l
 
-  return b
+    return b
+
 
 class JandalError(Exception):
-  pass
+    pass
+
 
 class NoEqSupport(Exception):
-  pass
+    pass
+
 
 def raisejandal(msg, line=0):
-  if line == 0:
-    s = "%s" % msg
-  else:
-    s = "line %d: %s" % (line, msg)
-  raise JandalError(s)
+    s = str(msg) if line == 0 else f"line {line}: {msg}"
+    raise JandalError(s)
+
 
 def readnoncomment(f):
-  l = f.readline().decode('utf-8')
-  if l == '':
-    return l
-  elif l[0] == '#': # jem: be a little more generous with the comments we accept?
-    return readnoncomment(f)
-  else:
-    return l.rstrip() + '\n' # leave just one \n and no spaces etc.
+    l = f.readline().decode("utf-8")
+    if l == "":
+        return l
+    elif l[0] == "#":  # jem: be a little more generous with the comments we accept?
+        return readnoncomment(f)
+    else:
+        return l.rstrip() + "\n"  # leave just one \n and no spaces etc.
+
+
+def _parse_conf_into(syntax, f):
+    """Read [block]/contents pairs from `f` and merge them into `syntax`."""
+    while pc(controlstruct(f)) != "":
+        l = readnoncomment(f)
+        r = re.match(r"\[(.*)\]\n", l)
+        if r:
+            tag = r.group(1)
+            s = ""
+            l = readnoncomment(f)
+            while l not in ("\n", ""):
+                s += l
+                l = readnoncomment(f)
+            syntax[tag] = s
+
 
 def parseconf(cns):
-  syntax = {}
-  warn = False # jem. make configurable?
-  # manually add the defaults as a file handle.
-  fs = [io.BytesIO(standardconf().encode('utf-8'))]
-  for sname in cns:
-    fs.append(open(sname, 'rb'))
+    syntax = {}
+    # Parse defaults first; any user conf can then override individual blocks.
+    _parse_conf_into(syntax, io.BytesIO(standardconf().encode("utf-8")))
+    for sname in cns:
+        with open(sname, "rb") as f:
+            _parse_conf_into(syntax, f)
+    return syntax
 
-  for f in fs:
-    while pc(controlstruct(f)) != '':
-      l = readnoncomment(f)
-      r = re.match(r'\[(.*)\]\n', l)
-
-      if r:
-        tag = r.group(1)
-
-        s = ''
-        l = readnoncomment(f)
-        while l not in ('\n', ''):
-          s += l
-          l = readnoncomment(f)
-
-        syntax[tag] = s
-
-    f.close()
-
-  return syntax
 
 def insertmenuitems(f, mname, current, prefix):
-  m = open(mname, 'rb')
-  while pc(controlstruct(m)) != '':
-    l = readnoncomment(m)
-    l = l.strip()
-    if l == '':
-      continue
+    with open(mname, "rb") as m:
+        while pc(controlstruct(m)) != "":
+            l = readnoncomment(m)
+            l = l.strip()
+            if l == "":
+                continue
 
-    r = re.match(r'\s*(.*?)\s*\[(.*)\]', l)
+            r = re.match(r"\s*(.*?)\s*\[(.*)\]", l)
 
-    if r: # then we have a menu item.
-      link = r.group(2)
-      if link[0] == '\\':
-        option = ' target="blank"'
-        link = link[1:]
-      else:
-        option = ''
+            if r:  # then we have a menu item.
+                link = r.group(2)
+                if link[0] == "\\":
+                    option = ' target="blank"'
+                    link = link[1:]
+                else:
+                    option = ""
 
-      # Don't use prefix if we have an absolute link.
-      if '://' not in r.group(2):
-        link = prefix + allreplace(link)
+                # Don't use prefix if we have an absolute link.
+                if "://" not in r.group(2):
+                    link = prefix + allreplace(link)
 
-      # replace spaces with nbsps.
-      # do do this, even though css would make it work - ie ignores.
-      # only replace spaces that aren't in {{ blocks.
-      in_quote = False
-      menuitem = ""
-      for group in re.split(r'({{|}})', r.group(1)):
-        if in_quote:
-          if group == '}}':
-            in_quote = False
-            next
-          else:
-            menuitem += group
-        else:
-          if group == '{{':
-            in_quote = True
-            next
-          else:
-            menuitem += br(re.sub(r'(?<!\\n) +', '~', group), f)
+                # Replace spaces with nbsps so menu items don't wrap. Only
+                # touch spaces outside {{...}} raw-html blocks.
+                in_quote = False
+                menuitem = ""
+                for group in re.split(r"({{|}})", r.group(1)):
+                    if in_quote:
+                        if group == "}}":
+                            in_quote = False
+                        else:
+                            menuitem += group
+                    elif group == "{{":
+                        in_quote = True
+                    else:
+                        menuitem += br(re.sub(r"(?<!\\n) +", "~", group), f)
 
-      if link[-len(current):] == current:
-        hb(f.outf, f.conf['currentmenuitem'], link, menuitem, option)
-      else:
-        hb(f.outf, f.conf['menuitem'], link, menuitem, option)
+                if link[-len(current) :] == current:
+                    hb(f.outf, f.conf["currentmenuitem"], link, menuitem, option)
+                else:
+                    hb(f.outf, f.conf["menuitem"], link, menuitem, option)
 
-    else: # menu category.
-      hb(f.outf, f.conf['menucategory'], br(l, f))
+            else:  # menu category.
+                hb(f.outf, f.conf["menucategory"], br(l, f))
 
-  m.close()
 
 def out(f, s):
-  f.write(s)
+    f.write(s)
+
 
 def mathjaxussub(link):
-  link = link.replace('_', 'UNDERSCORE65358')
+    link = link.replace("_", "UNDERSCORE65358")
 
-  return link
+    return link
+
 
 def mathjaxusresub(r):
-  r = re.sub('UNDERSCORE65358', '_', r)
+    r = re.sub("UNDERSCORE65358", "_", r)
 
-  return r
+    return r
+
 
 def mathjaxeqsub(eqtext):
-  eqtext = eqtext.replace('\\', 'BACKSLASH65358')
-  eqtext = eqtext.replace('[', 'OPENBRACKET65358')
-  eqtext = eqtext.replace(']', 'CLOSEBRACKET65358')
-  eqtext = eqtext.replace('*', 'ASTERISK65358')
-  eqtext = eqtext.replace('+', 'PLUS65358')
-  eqtext = eqtext.replace('&', 'AMPERSAND65358')
-  eqtext = eqtext.replace('<', 'LESSTHAN65358')
-  eqtext = eqtext.replace('>', 'GREATERTHAN65358')
-#  eqtext = eqtext.replace('\n', ' ')
-  eqtext = eqtext.replace('_', 'UNDERSCORE65358')
-  eqtext = eqtext.replace('/', 'SLASH65358')
+    eqtext = eqtext.replace("\\", "BACKSLASH65358")
+    eqtext = eqtext.replace("[", "OPENBRACKET65358")
+    eqtext = eqtext.replace("]", "CLOSEBRACKET65358")
+    eqtext = eqtext.replace("*", "ASTERISK65358")
+    eqtext = eqtext.replace("+", "PLUS65358")
+    eqtext = eqtext.replace("&", "AMPERSAND65358")
+    eqtext = eqtext.replace("<", "LESSTHAN65358")
+    eqtext = eqtext.replace(">", "GREATERTHAN65358")
+    #  eqtext = eqtext.replace('\n', ' ')
+    eqtext = eqtext.replace("_", "UNDERSCORE65358")
+    eqtext = eqtext.replace("/", "SLASH65358")
 
-  return eqtext
+    return eqtext
+
 
 def mathjaxeqresub(r):
-  r = re.sub('BACKSLASH65358', r'\\', r)
-  r = re.sub('OPENBRACKET65358', '[', r)
-  r = re.sub('CLOSEBRACKET65358', ']', r)
-  r = re.sub('ASTERISK65358', '*', r)
-  r = re.sub('PLUS65358', '+', r)
-  r = re.sub('AMPERSAND65358', '&', r)
-  r = re.sub('LESSTHAN65358', '<', r)
-  r = re.sub('GREATERTHAN65358', '>', r)
-  r = re.sub('QUOTATION65358', '"', r)
-  r = re.sub('UNDERSCORE65358', '_', r)
-  r = re.sub('SLASH65358', '/', r)
+    r = re.sub("BACKSLASH65358", r"\\", r)
+    r = re.sub("OPENBRACKET65358", "[", r)
+    r = re.sub("CLOSEBRACKET65358", "]", r)
+    r = re.sub("ASTERISK65358", "*", r)
+    r = re.sub("PLUS65358", "+", r)
+    r = re.sub("AMPERSAND65358", "&", r)
+    r = re.sub("LESSTHAN65358", "<", r)
+    r = re.sub("GREATERTHAN65358", ">", r)
+    r = re.sub("QUOTATION65358", '"', r)
+    r = re.sub("UNDERSCORE65358", "_", r)
+    r = re.sub("SLASH65358", "/", r)
 
-  return r
+    return r
+
 
 def hb(f, tag, content1, content2=None, content3=None):
-  """Writes out a halfblock (hb)."""
+    """Writes out a halfblock (hb)."""
 
-  if content1 is None:
-    content1 = ""
+    if content1 is None:
+        content1 = ""
 
-  if content3 is None:
-    content3 = ""
+    if content3 is None:
+        content3 = ""
 
-  # NB: lambda replacement avoids re.sub interpreting backslashes inside the
-  # replacement string. The KaTeX HTML output contains LaTeX source verbatim
-  # (\nabla, \frac, ...) inside <annotation> tags; without lambdas, re.sub
-  # treats those as regex escapes and raises PatternError.
-  if content2 is None:
-    r = re.sub(r'\|3', lambda _m: content3, re.sub(r'\|', lambda _m: content1, tag))
-    r = mathjaxeqresub(r)
-    out(f, r)
-  else:
-    r = re.sub(r'\|1', lambda _m: content1, tag)
-    r = re.sub(r'\|3', lambda _m: content3, r)
-    r = re.sub(r'\|2', lambda _m: content2, r)
-    r = mathjaxeqresub(r)
-    out(f, r)
+    # NB: lambda replacement avoids re.sub interpreting backslashes inside the
+    # replacement string. The KaTeX HTML output contains LaTeX source verbatim
+    # (\nabla, \frac, ...) inside <annotation> tags; without lambdas, re.sub
+    # treats those as regex escapes and raises PatternError.
+    if content2 is None:
+        r = re.sub(r"\|3", lambda _m: content3, re.sub(r"\|", lambda _m: content1, tag))
+        r = mathjaxeqresub(r)
+        out(f, r)
+    else:
+        r = re.sub(r"\|1", lambda _m: content1, tag)
+        r = re.sub(r"\|3", lambda _m: content3, r)
+        r = re.sub(r"\|2", lambda _m: content2, r)
+        r = mathjaxeqresub(r)
+        out(f, r)
+
 
 def pc(f, ditchcomments=True):
-  """Peeks at next character in the file."""
-  # Should only be used to look at the first character of a new line.
-  c = f.inf.read(1).decode('cp1252')
-  if c: # only undo forward movement if we're not at the end.
-    if ditchcomments and c == '#':
-      l = nl(f)
-      if doincludes(f, l):
-        return "#"
+    """Peeks at next character in the file."""
+    # Should only be used to look at the first character of a new line.
+    c = f.inf.read(1).decode("cp1252")
+    if c:  # only undo forward movement if we're not at the end.
+        if ditchcomments and c == "#":
+            l = nl(f)
+            if doincludes(f, l):
+                return "#"
 
-    if c in ' \t':
-      return pc(f)
+        if c in " \t":
+            return pc(f)
 
-    if c == '\\':
-      c += pc(f)
+        if c == "\\":
+            c += pc(f)
 
-    f.inf.seek(-1, 1)
-  elif f.otherfiles:
-    f.nextfile()
-    return pc(f, ditchcomments)
+        f.inf.seek(-1, 1)
+    elif f.otherfiles:
+        f.nextfile()
+        return pc(f, ditchcomments)
 
-  return c
+    return c
+
 
 def doincludes(f, l):
-  ir = 'includeraw{'
-  i = 'include{'
-  l = l.rstrip()
-  if l.startswith(ir):
-    nf = open(l[len(ir):-1], 'rb')
-    f.outf.write(nf.read().decode('utf-8'))
-    nf.close()
-  elif l.startswith(i):
-    f.pushfile(l[len(i):-1])
-  else:
-    return False
+    ir = "includeraw{"
+    i = "include{"
+    l = l.rstrip()
+    if l.startswith(ir):
+        with open(l[len(ir) : -1], "rb") as nf:
+            f.outf.write(nf.read().decode("utf-8"))
+    elif l.startswith(i):
+        f.pushfile(l[len(i) : -1])
+    else:
+        return False
 
-  return True
+    return True
+
 
 def nl(f, withcount=False, codemode=False):
-  """Get input file line."""
-  s = f.inf.readline().decode('utf-8')
-  if not s and f.otherfiles:
-    f.nextfile()
-    return nl(f, withcount, codemode)
+    """Get input file line."""
+    s = f.inf.readline().decode("utf-8")
+    if not s and f.otherfiles:
+        f.nextfile()
+        return nl(f, withcount, codemode)
 
-  f.linenum += 1
+    f.linenum += 1
 
-  if not codemode:
-    # remove any special characters - assume they were checked by pc()
-    # before we got here.
-    # remove any trailing comments.
-    s = s.lstrip(' \t')
-    s = re.sub(r'\s*(?<!\\)#.*', '', s)
+    if not codemode:
+        # remove any special characters - assume they were checked by pc()
+        # before we got here.
+        # remove any trailing comments.
+        s = s.lstrip(" \t")
+        s = re.sub(r"\s*(?<!\\)#.*", "", s)
 
-  if withcount:
-    if s[0] == '.':
-      m = r'\.'
+    if withcount:
+        m = r"\." if s[0] == "." else s[0]
+
+        r = re.match(f"({m}+) ", s)
+        if not r:
+            raise SyntaxError(f"couldn't handle the jandal (code 12039) on line {f.linenum}")
+
+        if not codemode:
+            s = s.lstrip("-.=:")
+
+        return (s, len(r.group(1)))
     else:
-      m = s[0]
+        if not codemode:
+            s = s.lstrip("-.=:")
 
-    r = re.match('(%s+) ' % m, s)
-    if not r:
-      raise SyntaxError("couldn't handle the jandal (code 12039) on line"
-                " %d" % f.linenum)
+        return s
 
-    if not codemode:
-      s = s.lstrip('-.=:')
-
-    return (s, len(r.group(1)))
-  else:
-    if not codemode:
-      s = s.lstrip('-.=:')
-
-    return s
 
 def np(f, withcount=False, eatblanks=True):
-  """Gets the next paragraph from the input file."""
-  # New paragraph markers signalled by characters in following tuple.
-  if withcount:
-    (s, c) = nl(f, withcount)
-  else:
-    s = nl(f)
+    """Gets the next paragraph from the input file."""
+    # New paragraph markers signalled by characters in following tuple.
+    if withcount:
+        (s, c) = nl(f, withcount)
+    else:
+        s = nl(f)
 
-  # Determine if the current line has an open inline equation block or not.
-  r = re.compile(r'(?<!\\)\$')
-  m = r.findall(s)
-  lm = len(m) % 2
-  isopeneq = lm == 1
-
-  # The followings characters signal a new paragraph when appeared right after '\n'.
-  # The original list included '-', which should not signal a new paragraph when used as the first character of a matrix row inside inline equation blocks.  Therefore, '-' is handled separately.
-  nl_signals = ('\n', '.', ':', '', '=', '~', '{', '\\(', '\\)')
-
-  pcf = pc(f)
-  while (not isopeneq and pcf != '-' and pcf not in nl_signals) or (isopeneq and pcf not in nl_signals):
-    if isopeneq and pcf == '-':
-      s += '-'
-    ns = nl(f)
-    m = r.findall(ns)
-    lm = (lm + len(m)) % 2
+    # Determine if the current line has an open inline equation block or not.
+    r = re.compile(r"(?<!\\)\$")
+    m = r.findall(s)
+    lm = len(m) % 2
     isopeneq = lm == 1
-    s += ns
+
+    # The followings characters signal a new paragraph when appeared right after '\n'.
+    # The original list included '-', which should not signal a new paragraph when used as the first character of a matrix row inside inline equation blocks.  Therefore, '-' is handled separately.
+    nl_signals = ("\n", ".", ":", "", "=", "~", "{", "\\(", "\\)")
+
     pcf = pc(f)
+    while (not isopeneq and pcf != "-" and pcf not in nl_signals) or (
+        isopeneq and pcf not in nl_signals
+    ):
+        if isopeneq and pcf == "-":
+            s += "-"
+        ns = nl(f)
+        m = r.findall(ns)
+        lm = (lm + len(m)) % 2
+        isopeneq = lm == 1
+        s += ns
+        pcf = pc(f)
 
-  while eatblanks and pc(f) == '\n':
-    nl(f) # burn blank line.
+    while eatblanks and pc(f) == "\n":
+        nl(f)  # burn blank line.
 
-  # in both cases, ditch the trailing \n.
-  if withcount:
-    return (s, c)
-  else:
-    return s
+    # in both cases, ditch the trailing \n.
+    if withcount:
+        return (s, c)
+    else:
+        return s
+
 
 def quote(s):
-  # Escapes every character with special jemdoc meaning by prefixing it with
-  # a backslash. The trailing strip pass in br() removes the backslashes after
-  # the rest of the rewriter pipeline runs, leaving the literal char intact.
-  # Underscore is included because it's jemdoc's underline syntax and KaTeX
-  # HTML output can contain bare underscores (e.g. inside <annotation>...).
-  return re.sub(r"""[\\*/+"'<>&$%\.~_[\]-]""", r'\\\g<0>', s)
+    # Escapes every character with special jemdoc meaning by prefixing it with
+    # a backslash. The trailing strip pass in br() removes the backslashes after
+    # the rest of the rewriter pipeline runs, leaving the literal char intact.
+    # Underscore is included because it's jemdoc's underline syntax and KaTeX
+    # HTML output can contain bare underscores (e.g. inside <annotation>...).
+    return re.sub(r"""[\\*/+"'<>&$%\.~_[\]-]""", r"\\\g<0>", s)
+
 
 def replacequoted(b):
-  """Quotes {{raw html}} sections."""
+    """Quotes {{raw html}} sections."""
 
-  r = re.compile(r'\{\{(.*?)\}\}', re.M + re.S)
-  m = r.search(b)
-  while m:
-    qb = quote(m.group(1))
-
-    b = b[:m.start()] + qb + b[m.end():]
-
-    m = r.search(b, m.start())
-
-  return b
-
-def replacepercents(b):
-  # replace %sections% as +{{sections}}+. Do not replace if within a link.
-
-  r = re.compile(r'(?<!\\)%(.*?)(?<!\\)%', re.M + re.S)
-  m = r.search(b)
-  while m:
-    #qb = '+' + quote(m.group(1)) + '+'
-    a = re.sub(r'\[', r'BSNOTLINKLEFT12039XX', m.group(1))
-    a = re.sub(r'\]', r'BSNOTLINKRIGHT12039XX', a)
-    qb = '+{{' + a + '}}+'
-
-    b = b[:m.start()] + qb + b[m.end():]
-
-    m = r.search(b, m.start())
-
-  return b
-
-def replaceequations(b, f):
-  """Replace $...$ (inline) and \\(...\\) (display) with rendered equations.
-
-  When the katex CLI is available, equations are rendered server-side and the
-  resulting HTML is embedded inline (wrapped in {{ ... }} so the rest of the
-  rewriter pipeline leaves it alone). When katex is not available, falls back
-  to the legacy MathJax-compatible delimiter passthrough so a conf override
-  loading client-side MathJax keeps working.
-  """
-  rs = ((re.compile(r'(?<!\\)\$(.*?)(?<!\\)\$', re.M + re.S), False),
-        (re.compile(r'(?<!\\)\\\((.*?)(?<!\\)\\\)', re.M + re.S), True))
-  for (r, displaymode) in rs:
+    r = re.compile(r"\{\{(.*?)\}\}", re.M + re.S)
     m = r.search(b)
     while m:
-      eq = m.group(1)
-      f.has_equations = True
+        qb = quote(m.group(1))
 
-      if KATEX_PATH:
-        rendered = genkatexeq(f, eq, displaymode)
-        rendered = rendered.replace('{{', 'DOUBLEOPENBRACE')
-        rendered = rendered.replace('}}', 'DOUBLECLOSEBRACE')
-        if displaymode:
-          # Wrap the entire surrounding paragraph in <p class="eqwl"> so
-          # display equations render centred (per the original \( ... \)
-          # paragraph-block convention).
-          b = b[:m.start()] + '{{' + rendered + '}}' + b[m.end():]
-          b = '{{<p class="eqwl">}}' + b + '{{</p>}}'
-        else:
-          b = b[:m.start()] + '{{' + rendered + '}}' + b[m.end():]
-      else:
-        # Fallback: emit MathJax-style delimiters and let a conf-loaded
-        # client-side script render them at view time.
-        eqtext = allreplace(eq)
-        eqtext = mathjaxeqsub(eqtext)
-        eqtext = eqtext.replace('{{', 'DOUBLEOPENBRACE')
-        eqtext = eqtext.replace('}}', 'DOUBLECLOSEBRACE')
-        if displaymode:
-          b = b[:m.start()] + 'BACKSLASH65358OPENBRACKET65358' + eqtext + 'BACKSLASH65358CLOSEBRACKET65358' + b[m.end():]
-          b = '<p class=QUOTATION65358eqwlQUOTATION65358>\n' + b + '\n</p>'
-          b = mathjaxeqsub(b)
-        else:
-          b = b[:m.start()] + 'BACKSLASH65358(' + eqtext + 'BACKSLASH65358)' + b[m.end():]
+        b = b[: m.start()] + qb + b[m.end() :]
 
-      m = r.search(b, m.start())
+        m = r.search(b, m.start())
 
-  return replacequoted(b)
+    return b
+
+
+def replacepercents(b):
+    # replace %sections% as +{{sections}}+. Do not replace if within a link.
+
+    r = re.compile(r"(?<!\\)%(.*?)(?<!\\)%", re.M + re.S)
+    m = r.search(b)
+    while m:
+        # qb = '+' + quote(m.group(1)) + '+'
+        a = re.sub(r"\[", r"BSNOTLINKLEFT12039XX", m.group(1))
+        a = re.sub(r"\]", r"BSNOTLINKRIGHT12039XX", a)
+        qb = "+{{" + a + "}}+"
+
+        b = b[: m.start()] + qb + b[m.end() :]
+
+        m = r.search(b, m.start())
+
+    return b
+
+
+def replaceequations(b, f):
+    """Replace $...$ (inline) and \\(...\\) (display) with rendered equations.
+
+    When the katex CLI is available, equations are rendered server-side and the
+    resulting HTML is embedded inline (wrapped in {{ ... }} so the rest of the
+    rewriter pipeline leaves it alone). When katex is not available, falls back
+    to the legacy MathJax-compatible delimiter passthrough so a conf override
+    loading client-side MathJax keeps working.
+    """
+    rs = (
+        (re.compile(r"(?<!\\)\$(.*?)(?<!\\)\$", re.M + re.S), False),
+        (re.compile(r"(?<!\\)\\\((.*?)(?<!\\)\\\)", re.M + re.S), True),
+    )
+    for r, displaymode in rs:
+        m = r.search(b)
+        while m:
+            eq = m.group(1)
+            f.has_equations = True
+
+            if KATEX_PATH:
+                rendered = genkatexeq(f, eq, displaymode)
+                rendered = rendered.replace("{{", "DOUBLEOPENBRACE")
+                rendered = rendered.replace("}}", "DOUBLECLOSEBRACE")
+                if displaymode:
+                    # Wrap the entire surrounding paragraph in <p class="eqwl"> so
+                    # display equations render centred (per the original \( ... \)
+                    # paragraph-block convention).
+                    b = b[: m.start()] + "{{" + rendered + "}}" + b[m.end() :]
+                    b = '{{<p class="eqwl">}}' + b + "{{</p>}}"
+                else:
+                    b = b[: m.start()] + "{{" + rendered + "}}" + b[m.end() :]
+            else:
+                # Fallback: emit MathJax-style delimiters and let a conf-loaded
+                # client-side script render them at view time.
+                eqtext = allreplace(eq)
+                eqtext = mathjaxeqsub(eqtext)
+                eqtext = eqtext.replace("{{", "DOUBLEOPENBRACE")
+                eqtext = eqtext.replace("}}", "DOUBLECLOSEBRACE")
+                if displaymode:
+                    b = (
+                        b[: m.start()]
+                        + "BACKSLASH65358OPENBRACKET65358"
+                        + eqtext
+                        + "BACKSLASH65358CLOSEBRACKET65358"
+                        + b[m.end() :]
+                    )
+                    b = "<p class=QUOTATION65358eqwlQUOTATION65358>\n" + b + "\n</p>"
+                    b = mathjaxeqsub(b)
+                else:
+                    b = (
+                        b[: m.start()]
+                        + "BACKSLASH65358("
+                        + eqtext
+                        + "BACKSLASH65358)"
+                        + b[m.end() :]
+                    )
+
+            m = r.search(b, m.start())
+
+    return replacequoted(b)
+
 
 def replaceimages(b):
-  # works with [img{width}{height}{alttext} location caption].
-  r = re.compile(r'(?<!\\)\[img((?:\{.*?\}){,3})\s(.*?)(?:\s(.*?))?(?<!\\)\]',
-           re.M + re.S)
-  m = r.search(b)
-  s = re.compile(r'{(.*?)}', re.M + re.S)
-  while m:
-    m1 = list(s.findall(m.group(1)))
-    m1 += ['']*(3 - len(m1))
+    # works with [img{width}{height}{alttext} location caption].
+    r = re.compile(r"(?<!\\)\[img((?:\{.*?\}){,3})\s(.*?)(?:\s(.*?))?(?<!\\)\]", re.M + re.S)
+    m = r.search(b)
+    s = re.compile(r"{(.*?)}", re.M + re.S)
+    while m:
+        m1 = list(s.findall(m.group(1)))
+        m1 += [""] * (3 - len(m1))
 
-    bits = []
-    link = m.group(2).strip()
-    bits.append(r'src=\"%s\"' % quote(link))
+        bits = []
+        link = m.group(2).strip()
+        bits.append(rf"src=\"{quote(link)}\"")
 
-    if m1[0]:
-      if m1[0].isdigit():
-        s = m1[0] + 'px'
-      else:
-        s = m1[0]
-      bits.append(r'width=\"%s\"' % quote(s))
-    if m1[1]:
-      if m1[1].isdigit():
-        s = m1[1] + 'px'
-      else:
-        s = m1[1]
-      bits.append(r'height=\"%s\"' % quote(s))
-    if m1[2]:
-      bits.append(r'alt=\"%s\"' % quote(m1[2]))
-    else:
-      bits.append(r'alt=\"\"')
+        if m1[0]:
+            s = m1[0] + "px" if m1[0].isdigit() else m1[0]
+            bits.append(rf"width=\"{quote(s)}\"")
+        if m1[1]:
+            s = m1[1] + "px" if m1[1].isdigit() else m1[1]
+            bits.append(rf"height=\"{quote(s)}\"")
+        if m1[2]:
+            bits.append(rf"alt=\"{quote(m1[2])}\"")
+        else:
+            bits.append(r"alt=\"\"")
 
-    b = b[:m.start()] + r'<img %s>' % " ".join(bits) + b[m.end():]
+        b = b[: m.start()] + r"<img {}>".format(" ".join(bits)) + b[m.end() :]
 
-    m = r.search(b, m.start())
+        m = r.search(b, m.start())
 
-  return b
+    return b
+
 
 def replacelinks(b):
-  # works with [link.html new link style].
-  r = re.compile(r'(?<!\\)\[(.*?)(?:\s(.*?))?(?<!\\)\]', re.M + re.S)
-  m = r.search(b)
-  while m:
-    m1 = m.group(1).strip()
+    # works with [link.html new link style].
+    r = re.compile(r"(?<!\\)\[(.*?)(?:\s(.*?))?(?<!\\)\]", re.M + re.S)
+    m = r.search(b)
+    while m:
+        m1 = m.group(1).strip()
 
-    if m1[0] == '/':
-        option = ''
-        m1 = m1[1:]
-    else:
-        option = ' target="blank"'
+        if m1[0] == "/":
+            option = ""
+            m1 = m1[1:]
+        else:
+            option = ' target="blank"'
 
-    if '@' in m1 and not m1.startswith('mailto:') and not \
-       m1.startswith('http://'):
-      link = 'mailto:' + m1
-    else:
-      link = m1
+        if "@" in m1 and not m1.startswith("mailto:") and not m1.startswith("http://"):
+            link = "mailto:" + m1
+        else:
+            link = m1
 
-    # first unquote any hashes (e.g. for in-page links).
-    link = re.sub(r'\\#', '#', link)
+        # first unquote any hashes (e.g. for in-page links).
+        link = re.sub(r"\\#", "#", link)
 
-    # remove any +{{ or }}+ links.
-    link = re.sub(r'(\+\{\{|\}\}\+)', r'%', link)
+        # remove any +{{ or }}+ links.
+        link = re.sub(r"(\+\{\{|\}\}\+)", r"%", link)
 
-    link = quote(link)
-    link = mathjaxussub(link)  # to prevent _ in address from changing
+        link = quote(link)
+        link = mathjaxussub(link)  # to prevent _ in address from changing
 
-    if m.group(2):
-      linkname = m.group(2).strip()
-    else:
-      # remove any mailto before labelling.
-      linkname = re.sub('^mailto:', '', link)
+        # If no explicit label, fall back to the link text minus any mailto: prefix.
+        linkname = m.group(2).strip() if m.group(2) else re.sub("^mailto:", "", link)
 
-    b = b[:m.start()] + r'<a href=\"%s\"%s>%s<\/a>' % (link, option, linkname) + b[m.end():]
+        b = b[: m.start()] + rf"<a href=\"{link}\"{option}>{linkname}<\/a>" + b[m.end() :]
 
-    m = r.search(b, m.start())
+        m = r.search(b, m.start())
 
-  return b
+    return b
+
 
 def br(b, f, tableblock=False):
-  """Does simple text replacements on a block of text. ('block replacements')"""
+    """Does simple text replacements on a block of text. ('block replacements')"""
 
-  # Deal with environment variables (say, for Michael Grant).
-  r = re.compile(r"!\$(\w{2,})\$!", re.M + re.S)
+    # Deal with environment variables (say, for Michael Grant).
+    r = re.compile(r"!\$(\w{2,})\$!", re.M + re.S)
 
-  for m in r.findall(b):
-    repl = os.environ.get(m)
-    if repl == None:
-      b = re.sub(r"!\$%s\$!" % m, 'FAILED_MATCH_' + m, b)
-    else:
-      b = re.sub(r"!\$%s\$!" % m, repl, b)
+    for m in r.findall(b):
+        repl = os.environ.get(m)
+        if repl is None:
+            b = re.sub(rf"!\${m}\$!", "FAILED_MATCH_" + m, b)
+        else:
+            b = re.sub(rf"!\${m}\$!", repl, b)
 
-  # Deal with literal backspaces.
-  if f.eqs:
-    b = replaceequations(b, f)
+    # Deal with literal backspaces.
+    if f.eqs:
+        b = replaceequations(b, f)
 
-  b = re.sub(r'\\\\', 'jemLITerl33talBS', b)
+    b = re.sub(r"\\\\", "jemLITerl33talBS", b)
 
-  # Deal with {{html embedding}}.
-  b = replacequoted(b)
+    # Deal with {{html embedding}}.
+    b = replacequoted(b)
 
-  b = allreplace(b)
+    b = allreplace(b)
 
-  b = b.lstrip('-. \t') # remove leading spaces, tabs, dashes, dots.
-  b = replaceimages(b) # jem not sure if this is still used.
+    b = b.lstrip("-. \t")  # remove leading spaces, tabs, dashes, dots.
+    b = replaceimages(b)  # jem not sure if this is still used.
 
-  # Slightly nasty hackery in this next bit.
-  b = replacepercents(b)
-  b = replacelinks(b)
-  b = re.sub(r'BSNOTLINKLEFT12039XX', r'[', b)
-  b = re.sub(r'BSNOTLINKRIGHT12039XX', r']', b)
-  b = replacequoted(b)
+    # Slightly nasty hackery in this next bit.
+    b = replacepercents(b)
+    b = replacelinks(b)
+    b = re.sub(r"BSNOTLINKLEFT12039XX", r"[", b)
+    b = re.sub(r"BSNOTLINKRIGHT12039XX", r"]", b)
+    b = replacequoted(b)
 
-  # Deal with /italics/ first because the '/' in other tags would otherwise
-  # interfere.
-  r = re.compile(r'(?<!\\)/(.*?)(?<!\\)/', re.M + re.S)
-  b = re.sub(r, r'<i>\1</i>', b)
+    # Deal with /italics/ first because the '/' in other tags would otherwise
+    # interfere.
+    r = re.compile(r"(?<!\\)/(.*?)(?<!\\)/", re.M + re.S)
+    b = re.sub(r, r"<i>\1</i>", b)
 
-  # Deal with *bold*.
-  r = re.compile(r'(?<!\\)\*(.*?)(?<!\\)\*', re.M + re.S)
-  b = re.sub(r, r'<b>\1</b>', b)
- 
-  # Deal with _underscore_.
-  r = re.compile(r'(?<!\\)_(.*?)(?<!\\)_', re.M + re.S)
-  b = re.sub(r, r'<u>\1</u>', b)
-  b = mathjaxusresub(b)
- 
-  # Deal with +monospace+.
-  r = re.compile(r'(?<!\\)\+(.*?)(?<!\\)\+', re.M + re.S)
-  b = re.sub(r, r'<code>\1</code>', b)
+    # Deal with *bold*.
+    r = re.compile(r"(?<!\\)\*(.*?)(?<!\\)\*", re.M + re.S)
+    b = re.sub(r, r"<b>\1</b>", b)
 
-  # Deal with "double quotes".
-  r = re.compile(r'(?<!\\)"(.*?)(?<!\\)"', re.M + re.S)
-  b = re.sub(r, r'&ldquo;\1&rdquo;', b)
+    # Deal with _underscore_.
+    r = re.compile(r"(?<!\\)_(.*?)(?<!\\)_", re.M + re.S)
+    b = re.sub(r, r"<u>\1</u>", b)
+    b = mathjaxusresub(b)
 
-  # Deal with left quote `.
-  r = re.compile(r"(?<!\\)`", re.M + re.S)
-  b = re.sub(r, r'&lsquo;', b)
+    # Deal with +monospace+.
+    r = re.compile(r"(?<!\\)\+(.*?)(?<!\\)\+", re.M + re.S)
+    b = re.sub(r, r"<code>\1</code>", b)
 
-  # Deal with apostrophe '.
-  # Add an assertion that the next character's not a letter, to deal with
-  # apostrophes properly.
-  r = re.compile(r"(?<!\\)'(?![a-zA-Z])", re.M + re.S)
-  b = re.sub(r, r'&rsquo;', b)
+    # Deal with "double quotes".
+    r = re.compile(r'(?<!\\)"(.*?)(?<!\\)"', re.M + re.S)
+    b = re.sub(r, r"&ldquo;\1&rdquo;", b)
 
-  # Deal with em dash ---.
-  r = re.compile(r"(?<!\\)---", re.M + re.S)
-  b = re.sub(r, r'&#8201;&mdash;&#8201;', b)
+    # Deal with left quote `.
+    r = re.compile(r"(?<!\\)`", re.M + re.S)
+    b = re.sub(r, r"&lsquo;", b)
 
-  # Deal with en dash --.
-  r = re.compile(r"(?<!\\)--", re.M + re.S)
-  b = re.sub(r, r'&ndash;', b)
+    # Deal with apostrophe '.
+    # Add an assertion that the next character's not a letter, to deal with
+    # apostrophes properly.
+    r = re.compile(r"(?<!\\)'(?![a-zA-Z])", re.M + re.S)
+    b = re.sub(r, r"&rsquo;", b)
 
-  # Deal with ellipsis ....
-  r = re.compile(r"(?<!\\)\.\.\.", re.M + re.S)
-  b = re.sub(r, r'&hellip;', b)
+    # Deal with em dash ---.
+    r = re.compile(r"(?<!\\)---", re.M + re.S)
+    b = re.sub(r, r"&#8201;&mdash;&#8201;", b)
 
-  # Deal with non-breaking space ~.
-  r = re.compile(r"(?<!\\)~", re.M + re.S)
-  b = re.sub(r, r'&nbsp;', b)
-  b = re.sub('TILDE', '~', b)
+    # Deal with en dash --.
+    r = re.compile(r"(?<!\\)--", re.M + re.S)
+    b = re.sub(r, r"&ndash;", b)
 
-  # Deal with registered trademark \R.
-  r = re.compile(r"(?<!\\)\\R", re.M + re.S)
-  b = re.sub(r, r'&reg;', b)
+    # Deal with ellipsis ....
+    r = re.compile(r"(?<!\\)\.\.\.", re.M + re.S)
+    b = re.sub(r, r"&hellip;", b)
 
-  # Deal with copyright \C.
-  r = re.compile(r"(?<!\\)\\C", re.M + re.S)
-  b = re.sub(r, r'&copy;', b)
+    # Deal with non-breaking space ~.
+    r = re.compile(r"(?<!\\)~", re.M + re.S)
+    b = re.sub(r, r"&nbsp;", b)
+    b = re.sub("TILDE", "~", b)
 
-  # Deal with middot \M.
-  r = re.compile(r"(?<!\\)\\M", re.M + re.S)
-  b = re.sub(r, r'&middot;', b)
+    # Deal with registered trademark \R.
+    r = re.compile(r"(?<!\\)\\R", re.M + re.S)
+    b = re.sub(r, r"&reg;", b)
 
-  # Deal with line break.
-  r = re.compile(r"(?<!\\)\\n", re.M + re.S)
-  b = re.sub(r, r'<br>', b)
+    # Deal with copyright \C.
+    r = re.compile(r"(?<!\\)\\C", re.M + re.S)
+    b = re.sub(r, r"&copy;", b)
 
-  # Deal with paragraph break. Caution! Should only use when we're already in
-  # a paragraph.
-  r = re.compile(r"(?<!\\)\\p", re.M + re.S)
-  b = re.sub(r, r'</p><p>', b)
+    # Deal with middot \M.
+    r = re.compile(r"(?<!\\)\\M", re.M + re.S)
+    b = re.sub(r, r"&middot;", b)
 
-  if tableblock:
-    # Deal with ||, meaning </td></tr><tr><td>
-    r = re.compile(r"(?<!\\)\|\|", re.M + re.S)
-    f.tablecol = 2
-    bcopy = b
-    b = ""
-    r2 = re.compile(r"(?<!\\)\|", re.M + re.S)
-    for l in bcopy.splitlines():
-      f.tablerow += 1
-      l = re.sub(r, r'</td></tr>\n<tr class="r%d"><td class="c1">' \
-            % f.tablerow, l)
+    # Deal with line break.
+    r = re.compile(r"(?<!\\)\\n", re.M + re.S)
+    b = re.sub(r, r"<br>", b)
 
-      l2 = ''
-      col = 2
-      r2s = r2.split(l)
-      for x in r2s[:-1]:
-        l2 += x + ('</td><td class="c%d">' % col)
-        col += 1
-      l2 += r2s[-1]
+    # Deal with paragraph break. Caution! Should only use when we're already in
+    # a paragraph.
+    r = re.compile(r"(?<!\\)\\p", re.M + re.S)
+    b = re.sub(r, r"</p><p>", b)
 
-      b += l2
+    if tableblock:
+        # Deal with ||, meaning </td></tr><tr><td>
+        r = re.compile(r"(?<!\\)\|\|", re.M + re.S)
+        f.tablecol = 2
+        bcopy = b
+        b = ""
+        r2 = re.compile(r"(?<!\\)\|", re.M + re.S)
+        for l in bcopy.splitlines():
+            f.tablerow += 1
+            l = re.sub(r, rf'</td></tr>\n<tr class="r{f.tablerow}"><td class="c1">', l)
 
-  # Second to last, remove any remaining quoting backslashes.
-  b = re.sub(r'\\(?!\\)', '', b)
+            l2 = ""
+            col = 2
+            r2s = r2.split(l)
+            for x in r2s[:-1]:
+                l2 += x + f'</td><td class="c{col}">'
+                col += 1
+            l2 += r2s[-1]
 
-  # Deal with literal backspaces.
-  b = re.sub('jemLITerl33talBS', r'\\', b)
+            b += l2
 
-  # Also fix up DOUBLEOPEN and DOUBLECLOSEBRACES.
-  b = re.sub('DOUBLEOPENBRACE', '{{', b)
-  b = re.sub('DOUBLECLOSEBRACE', '}}', b)
+    # Second to last, remove any remaining quoting backslashes.
+    b = re.sub(r"\\(?!\\)", "", b)
 
-  return b
+    # Deal with literal backspaces.
+    b = re.sub("jemLITerl33talBS", r"\\", b)
+
+    # Also fix up DOUBLEOPEN and DOUBLECLOSEBRACES.
+    b = re.sub("DOUBLEOPENBRACE", "{{", b)
+    b = re.sub("DOUBLECLOSEBRACE", "}}", b)
+
+    return b
+
 
 def allreplace(b):
-  """Replacements that should be done on everything."""
-  # The following replace &, >, < in LaTeX code with &amp;, &gt;, &lt;.  Is this necessary?
-  r = re.compile(r"(?<!\\)&", re.M + re.S)
-  b = re.sub(r, r'&amp;', b)
+    """Replacements that should be done on everything."""
+    # The following replace &, >, < in LaTeX code with &amp;, &gt;, &lt;.  Is this necessary?
+    r = re.compile(r"(?<!\\)&", re.M + re.S)
+    b = re.sub(r, r"&amp;", b)
 
-  r = re.compile(r"(?<!\\)>", re.M + re.S)
-  b = re.sub(r, r'&gt;', b)
+    r = re.compile(r"(?<!\\)>", re.M + re.S)
+    b = re.sub(r, r"&gt;", b)
 
-  r = re.compile(r"(?<!\\)<", re.M + re.S)
-  b = re.sub(r, r'&lt;', b)
+    r = re.compile(r"(?<!\\)<", re.M + re.S)
+    b = re.sub(r, r"&lt;", b)
 
-  return b
+    return b
+
 
 def pyint(f, l):
-  l = l.rstrip()
-  l = allreplace(l)
+    l = l.rstrip()
+    l = allreplace(l)
 
-  r = re.compile(r'(#.*)')
-  l = r.sub(r'<span class = "comment">\1</span>', l)
+    r = re.compile(r"(#.*)")
+    l = r.sub(r'<span class = "comment">\1</span>', l)
 
-  if l.startswith('&gt;&gt;&gt;'):
-    hb(f, '<span class="pycommand">|</span>\n', l)
-  else:
-    out(f, l + '\n')
+    if l.startswith("&gt;&gt;&gt;"):
+        hb(f, '<span class="pycommand">|</span>\n', l)
+    else:
+        out(f, l + "\n")
+
 
 def putbsbs(l):
-  for i in range(len(l)):
-    l[i] = '\\b' + l[i] + '\\b'
+    for i in range(len(l)):
+        l[i] = "\\b" + l[i] + "\\b"
 
-  return l
+    return l
+
 
 def gethl(lang):
-  # disable comments by default, by choosing unlikely regex.
-  d = {'strings':False}
-  if lang in ('py', 'python'):
-    d['statement'] = ['break', 'continue', 'del', 'except', 'exec',
-              'finally', 'pass', 'print', 'raise', 'return', 'try',
-              'with', 'global', 'assert', 'lambda', 'yield', 'def',
-              'class', 'for', 'while', 'if', 'elif', 'else',
-              'import', 'from', 'as', 'assert']
-    d['builtin'] = ['True', 'False', 'set', 'open', 'frozenset',
-            'enumerate', 'object', 'hasattr', 'getattr', 'filter',
-            'eval', 'zip', 'vars', 'unicode', 'type', 'str',
-            'repr', 'round', 'range', 'and', 'in', 'is', 'not',
-            'or']
-    d['special'] = ['cols', 'optvar', 'param', 'problem', 'norm2', 'norm1',
-            'value', 'minimize', 'maximize', 'rows', 'rand',
-            'randn', 'printval', 'matrix']
-    d['error'] = [r'\w*Error']
-    d['commentuntilend'] = '#'
-    d['strings'] = True
-  elif lang in ['c', 'c++', 'cpp']:
-    d['statement'] = ['if', 'else', 'printf', 'return', 'for']
-    d['builtin'] = ['static', 'typedef', 'int', 'float', 'double', 'void',
-            'clock_t', 'struct', 'long', 'extern', 'char']
-    d['operator'] = ['#include.*', '#define', '@pyval{', '}@', '@pyif{',
-             '@py{']
-    d['error'] = [r'\w*Error']
-    d['commentuntilend'] = ['//', '/*', ' * ', '*/']
-  elif lang in ('rb', 'ruby'):
-    d['statement'] = putbsbs(['while', 'until', 'unless', 'if', 'elsif',
-                  'when', 'then', 'else', 'end', 'begin',
-                  'rescue', 'class', 'def'])
-    d['operator'] = putbsbs(['and', 'not', 'or'])
-    d['builtin'] = putbsbs(['true', 'false', 'require', 'warn'])
-    d['special'] = putbsbs(['IO'])
-    d['error'] = putbsbs([r'\w*Error'])
-    d['commentuntilend'] = '#'
-    d['strings'] = True
-    d['strings'] = True
-    if lang in ['c++', 'cpp']:
-      d['builtin'] += ['bool', 'virtual']
-      d['statement'] += ['new', 'delete']
-      d['operator'] += ['&lt;&lt;', '&gt;&gt;']
-      d['special'] = ['public', 'private', 'protected', 'template',
-              'ASSERT']
-  elif lang == 'sh':
-    d['statement'] = ['cd', 'ls', 'sudo', 'cat', 'alias', 'for', 'do',
-              'done', 'in', ]
-    d['operator'] = ['&gt;', r'\\', r'\|', ';', '2&gt;', 'monolith&gt;',
-             'kiwi&gt;', 'ant&gt;', 'kakapo&gt;', 'client&gt;']
-    d['builtin'] = putbsbs(['gem', 'gcc', 'python', 'curl', 'wget', 'ssh',
-                'latex', 'find', 'sed', 'gs', 'grep', 'tee',
-                'gzip', 'killall', 'echo', 'touch',
-                'ifconfig', 'git', r'(?<!\.)tar(?!\.)'])
-    d['commentuntilend'] = '#'
-    d['strings'] = True
-  elif lang == 'matlab':
-    d['statement'] = putbsbs(['max', 'min', 'find', 'rand', 'cumsum', 'randn', 'help',
-                     'error', 'if', 'end', 'for'])
-    d['operator'] = ['&gt;', 'ans =', '>>', '~', r'\.\.\.']
-    d['builtin'] = putbsbs(['csolve'])
-    d['commentuntilend'] = '%'
-    d['strings'] = True
-  elif lang == 'commented':
-    d['commentuntilend'] = '#'
+    # disable comments by default, by choosing unlikely regex.
+    d = {"strings": False}
+    if lang in ("py", "python"):
+        d["statement"] = [
+            "break",
+            "continue",
+            "del",
+            "except",
+            "exec",
+            "finally",
+            "pass",
+            "print",
+            "raise",
+            "return",
+            "try",
+            "with",
+            "global",
+            "assert",
+            "lambda",
+            "yield",
+            "def",
+            "class",
+            "for",
+            "while",
+            "if",
+            "elif",
+            "else",
+            "import",
+            "from",
+            "as",
+            "assert",
+        ]
+        d["builtin"] = [
+            "True",
+            "False",
+            "set",
+            "open",
+            "frozenset",
+            "enumerate",
+            "object",
+            "hasattr",
+            "getattr",
+            "filter",
+            "eval",
+            "zip",
+            "vars",
+            "unicode",
+            "type",
+            "str",
+            "repr",
+            "round",
+            "range",
+            "and",
+            "in",
+            "is",
+            "not",
+            "or",
+        ]
+        d["special"] = [
+            "cols",
+            "optvar",
+            "param",
+            "problem",
+            "norm2",
+            "norm1",
+            "value",
+            "minimize",
+            "maximize",
+            "rows",
+            "rand",
+            "randn",
+            "printval",
+            "matrix",
+        ]
+        d["error"] = [r"\w*Error"]
+        d["commentuntilend"] = "#"
+        d["strings"] = True
+    elif lang in ["c", "c++", "cpp"]:
+        d["statement"] = ["if", "else", "printf", "return", "for"]
+        d["builtin"] = [
+            "static",
+            "typedef",
+            "int",
+            "float",
+            "double",
+            "void",
+            "clock_t",
+            "struct",
+            "long",
+            "extern",
+            "char",
+        ]
+        d["operator"] = ["#include.*", "#define", "@pyval{", "}@", "@pyif{", "@py{"]
+        d["error"] = [r"\w*Error"]
+        d["commentuntilend"] = ["//", "/*", " * ", "*/"]
+    elif lang in ("rb", "ruby"):
+        d["statement"] = putbsbs(
+            [
+                "while",
+                "until",
+                "unless",
+                "if",
+                "elsif",
+                "when",
+                "then",
+                "else",
+                "end",
+                "begin",
+                "rescue",
+                "class",
+                "def",
+            ]
+        )
+        d["operator"] = putbsbs(["and", "not", "or"])
+        d["builtin"] = putbsbs(["true", "false", "require", "warn"])
+        d["special"] = putbsbs(["IO"])
+        d["error"] = putbsbs([r"\w*Error"])
+        d["commentuntilend"] = "#"
+        d["strings"] = True
+        d["strings"] = True
+        if lang in ["c++", "cpp"]:
+            d["builtin"] += ["bool", "virtual"]
+            d["statement"] += ["new", "delete"]
+            d["operator"] += ["&lt;&lt;", "&gt;&gt;"]
+            d["special"] = ["public", "private", "protected", "template", "ASSERT"]
+    elif lang == "sh":
+        d["statement"] = [
+            "cd",
+            "ls",
+            "sudo",
+            "cat",
+            "alias",
+            "for",
+            "do",
+            "done",
+            "in",
+        ]
+        d["operator"] = [
+            "&gt;",
+            r"\\",
+            r"\|",
+            ";",
+            "2&gt;",
+            "monolith&gt;",
+            "kiwi&gt;",
+            "ant&gt;",
+            "kakapo&gt;",
+            "client&gt;",
+        ]
+        d["builtin"] = putbsbs(
+            [
+                "gem",
+                "gcc",
+                "python",
+                "curl",
+                "wget",
+                "ssh",
+                "latex",
+                "find",
+                "sed",
+                "gs",
+                "grep",
+                "tee",
+                "gzip",
+                "killall",
+                "echo",
+                "touch",
+                "ifconfig",
+                "git",
+                r"(?<!\.)tar(?!\.)",
+            ]
+        )
+        d["commentuntilend"] = "#"
+        d["strings"] = True
+    elif lang == "matlab":
+        d["statement"] = putbsbs(
+            ["max", "min", "find", "rand", "cumsum", "randn", "help", "error", "if", "end", "for"]
+        )
+        d["operator"] = ["&gt;", "ans =", ">>", "~", r"\.\.\."]
+        d["builtin"] = putbsbs(["csolve"])
+        d["commentuntilend"] = "%"
+        d["strings"] = True
+    elif lang == "commented":
+        d["commentuntilend"] = "#"
 
-  # Add bsbs (whatever those are).
-  for x in ['statement', 'builtin', 'special', 'error']:
-    if x in d:
-      d[x] = putbsbs(d[x])
+    # Add bsbs (whatever those are).
+    for x in ["statement", "builtin", "special", "error"]:
+        if x in d:
+            d[x] = putbsbs(d[x])
 
-  return d
+    return d
+
 
 def language(f, l, hl):
-  l = l.rstrip()
-  l = allreplace(l)
-  # handle strings.
-  if hl['strings']:
-    r = re.compile(r'(".*?")')
-    l = r.sub(r'<span CLCLclass="string">\1</span>', l)
-    r = re.compile(r"('.*?')")
-    l = r.sub(r'<span CLCLclass="string">\1</span>', l)
+    l = l.rstrip()
+    l = allreplace(l)
+    # handle strings.
+    if hl["strings"]:
+        r = re.compile(r'(".*?")')
+        l = r.sub(r'<span CLCLclass="string">\1</span>', l)
+        r = re.compile(r"('.*?')")
+        l = r.sub(r'<span CLCLclass="string">\1</span>', l)
 
-  if 'statement' in hl:
-    r = re.compile('(' + '|'.join(hl['statement']) + ')')
-    l = r.sub(r'<span class="statement">\1</span>', l)
+    if "statement" in hl:
+        r = re.compile("(" + "|".join(hl["statement"]) + ")")
+        l = r.sub(r'<span class="statement">\1</span>', l)
 
-  if 'operator' in hl:
-    r = re.compile('(' + '|'.join(hl['operator']) + ')')
-    l = r.sub(r'<span class="operator">\1</span>', l)
+    if "operator" in hl:
+        r = re.compile("(" + "|".join(hl["operator"]) + ")")
+        l = r.sub(r'<span class="operator">\1</span>', l)
 
-  if 'builtin' in hl:
-    r = re.compile('(' + '|'.join(hl['builtin']) + ')')
-    l = r.sub(r'<span class="builtin">\1</span>', l)
+    if "builtin" in hl:
+        r = re.compile("(" + "|".join(hl["builtin"]) + ")")
+        l = r.sub(r'<span class="builtin">\1</span>', l)
 
-  if 'special' in hl:
-    r = re.compile('(' + '|'.join(hl['special']) + ')')
-    l = r.sub(r'<span class="special">\1</span>', l)
+    if "special" in hl:
+        r = re.compile("(" + "|".join(hl["special"]) + ")")
+        l = r.sub(r'<span class="special">\1</span>', l)
 
-  if 'error' in hl:
-    r = re.compile('(' + '|'.join(hl['error']) + ')')
-    l = r.sub(r'<span class="error">\1</span>', l)
+    if "error" in hl:
+        r = re.compile("(" + "|".join(hl["error"]) + ")")
+        l = r.sub(r'<span class="error">\1</span>', l)
 
-  l = re.sub('CLCLclass', 'class', l)
+    l = re.sub("CLCLclass", "class", l)
 
-  if 'commentuntilend' in hl:
-    cue = hl['commentuntilend']
-    if isinstance(cue, (list, tuple)):
-      for x in cue:
-        if l.strip().startswith(x):
-          hb(f, '<span class="comment">|</span>\n', allreplace(l))
-          return
-        if '//' in cue: # Handle this separately.
-          r = re.compile(r'\/\/.*')
-          l = r.sub(r'<span class="comment">\g<0></span>', l)
-    elif cue == '#': # Handle this separately.
-      r = re.compile(r'#.*')
-      l = r.sub(r'<span class="comment">\g<0></span>', l)
-    elif cue == '%': # Handle this separately.
-      r = re.compile(r'%.*')
-      l = r.sub(r'<span class="comment">\g<0></span>', l)
-    elif l.strip().startswith(cue):
-      hb(f, '<span class="comment">|</span>\n', allreplace(l))
-      return
+    if "commentuntilend" in hl:
+        cue = hl["commentuntilend"]
+        if isinstance(cue, (list, tuple)):
+            for x in cue:
+                if l.strip().startswith(x):
+                    hb(f, '<span class="comment">|</span>\n', allreplace(l))
+                    return
+                if "//" in cue:  # Handle this separately.
+                    r = re.compile(r"\/\/.*")
+                    l = r.sub(r'<span class="comment">\g<0></span>', l)
+        elif cue == "#":  # Handle this separately.
+            r = re.compile(r"#.*")
+            l = r.sub(r'<span class="comment">\g<0></span>', l)
+        elif cue == "%":  # Handle this separately.
+            r = re.compile(r"%.*")
+            l = r.sub(r'<span class="comment">\g<0></span>', l)
+        elif l.strip().startswith(cue):
+            hb(f, '<span class="comment">|</span>\n', allreplace(l))
+            return
 
-  out(f, l + '\n')
+    out(f, l + "\n")
+
 
 def dashlist(f, ordered=False):
-  level = 0
+    level = 0
 
-  if ordered:
-    char = '.'
-    ul = 'ol'
-  else:
-    char = '-'
-    ul = 'ul'
-
-  while pc(f) == char:
-    (s, newlevel) = np(f, True, False)
-
-    # first adjust list number as appropriate.
-    if newlevel > level:
-      for i in range(newlevel - level):
-        if newlevel > 1:
-          out(f.outf, '\n')
-        out(f.outf, '<%s>\n<li>' % ul)
-    elif newlevel < level:
-      out(f.outf, '\n</li>')
-      for i in range(level - newlevel):
-        #out(f.outf, '</li>\n</%s>\n</li><li>' % ul)
-        # demote means place '</ul></li>' in the file.
-        out(f.outf, '</%s>\n</li>' % ul)
-      #out(f.outf, '\n<li>')
-      out(f.outf, '\n<li>')
+    if ordered:
+        char = "."
+        ul = "ol"
     else:
-      # same level, make a new list item.
-      out(f.outf, '\n</li>\n<li>')
+        char = "-"
+        ul = "ul"
 
-    out(f.outf, '<p>' + mathjaxeqresub(br(s, f)) + '</p>')
-    level = newlevel
+    while pc(f) == char:
+        (s, newlevel) = np(f, True, False)
 
-  for i in range(level):
-    out(f.outf, '\n</li>\n</%s>\n' % ul)
+        # first adjust list number as appropriate.
+        if newlevel > level:
+            for _ in range(newlevel - level):
+                if newlevel > 1:
+                    out(f.outf, "\n")
+                out(f.outf, f"<{ul}>\n<li>")
+        elif newlevel < level:
+            out(f.outf, "\n</li>")
+            for _ in range(level - newlevel):
+                # demote means place '</ul></li>' in the file.
+                out(f.outf, f"</{ul}>\n</li>")
+            out(f.outf, "\n<li>")
+        else:
+            # same level, make a new list item.
+            out(f.outf, "\n</li>\n<li>")
+
+        out(f.outf, "<p>" + mathjaxeqresub(br(s, f)) + "</p>")
+        level = newlevel
+
+    for _ in range(level):
+        out(f.outf, f"\n</li>\n</{ul}>\n")
+
 
 def colonlist(f):
-  out(f.outf, '<dl>\n')
-  while pc(f) == ':':
-    s = np(f, eatblanks=False)
-    r = re.compile(r'\s*{(.*?)(?<!\\)}(.*)', re.M + re.S)
-    g = re.match(r, s)
+    out(f.outf, "<dl>\n")
+    while pc(f) == ":":
+        s = np(f, eatblanks=False)
+        r = re.compile(r"\s*{(.*?)(?<!\\)}(.*)", re.M + re.S)
+        g = re.match(r, s)
 
-    if not g or len(g.groups()) != 2:
-      raise SyntaxError("couldn't handle the jandal (invalid deflist "
-               "format) on line %d" % f.linenum)
-    # split into definition / non-definition part.
-    defpart = g.group(1)
-    rest = g.group(2)
+        if not g or len(g.groups()) != 2:
+            raise SyntaxError(
+                f"couldn't handle the jandal (invalid deflist format) on line {f.linenum}"
+            )
+        # split into definition / non-definition part.
+        defpart = g.group(1)
+        rest = g.group(2)
 
-    hb(f.outf, '<dt>|</dt>\n', br(defpart, f))
-    hb(f.outf, '<dd><p>|</p></dd>\n', br(rest, f))
+        hb(f.outf, "<dt>|</dt>\n", br(defpart, f))
+        hb(f.outf, "<dd><p>|</p></dd>\n", br(rest, f))
 
-  out(f.outf, '</dl>\n')
+    out(f.outf, "</dl>\n")
+
 
 def codeblock(f, g):
-  if g[1] == 'raw':
-    raw = True
-    ext_prog = None
-  elif g[0] == 'filter_through':
-    # Filter through external program.
-    raw = False
-    ext_prog = g[1]
-    buff = ""
-  else:
-    ext_prog = None
-    raw = False
-    out(f.outf, f.conf['codeblock'])
-    if g[0]:
-      hb(f.outf, f.conf['blocktitle'], g[0])
-    if g[1] == 'jemdoc':
-      out(f.outf, f.conf['codeblockcontenttt'])
+    if g[1] == "raw":
+        raw = True
+        ext_prog = None
+    elif g[0] == "filter_through":
+        # Filter through external program.
+        raw = False
+        ext_prog = g[1]
+        buff = ""
     else:
-      out(f.outf, f.conf['codeblockcontent'])
+        ext_prog = None
+        raw = False
+        out(f.outf, f.conf["codeblock"])
+        if g[0]:
+            hb(f.outf, f.conf["blocktitle"], g[0])
+        if g[1] == "jemdoc":
+            out(f.outf, f.conf["codeblockcontenttt"])
+        else:
+            out(f.outf, f.conf["codeblockcontent"])
 
-  # Now we are handling code.
-  # Handle \~ and ~ differently.
-  stringmode = False
-  while 1: # wait for EOF.
-    l = nl(f, codemode=True)
-    if not l:
-      break
-    elif l.startswith('~'):
-      break
-    elif l.startswith('\\~'):
-      l = l[1:]
-    elif l.startswith('\\{'):
-      l = l[1:]
-    elif ext_prog:
-      buff += l
-      continue
-    elif stringmode:
-      if l.rstrip().endswith('"""'):
-        out(f.outf, l + '</span>')
-        stringmode = False
-      else:
-        out(f.outf, l)
-      continue
-
-    # jem revise pyint out of the picture.
-    if g[1] == 'pyint':
-      pyint(f.outf, l)
-    else:
-      if raw:
-        out(f.outf, l)
-      elif g[1] == 'jemdoc':
-        # doing this more nicely needs python 2.5.
-        for x in ('#', '~', '>>>', r'\~', '{'):
-          if str(l).lstrip().startswith(x):
-            out(f.outf, '</code><pre class="tthl">')
-            out(f.outf, l + '</pre><code class="tthl">')
+    # Now we are handling code.
+    # Handle \~ and ~ differently.
+    stringmode = False
+    while 1:  # wait for EOF.
+        l = nl(f, codemode=True)
+        if not l or l.startswith("~"):
             break
-        else:
-          for x in (':', '.', '-'):
-            if str(l).lstrip().startswith(x):
-              out(f.outf, '<br>' + prependnbsps(l))
-              break
-          else:
-            if str(l).lstrip().startswith('='):
-              out(f.outf, prependnbsps(l) + '<br>')
+        elif l.startswith("\\~") or l.startswith("\\{"):
+            l = l[1:]
+        elif ext_prog:
+            buff += l
+            continue
+        elif stringmode:
+            if l.rstrip().endswith('"""'):
+                out(f.outf, l + "</span>")
+                stringmode = False
             else:
-              out(f.outf, l)
-      else:
-        if l.startswith('\\#include{') or l.startswith('\\#includeraw{'):
-          out(f.outf, l[1:])
-        elif l.startswith('#') and doincludes(f, l[1:]):
-          continue
-        elif g[1] in ('python', 'py') and l.strip().startswith('"""'):
-          out(f.outf, '<span class="string">' + l)
-          stringmode = True
+                out(f.outf, l)
+            continue
+
+        # jem revise pyint out of the picture.
+        if g[1] == "pyint":
+            pyint(f.outf, l)
         else:
-          language(f.outf, l, gethl(g[1]))
+            if raw:
+                out(f.outf, l)
+            elif g[1] == "jemdoc":
+                # doing this more nicely needs python 2.5.
+                for x in ("#", "~", ">>>", r"\~", "{"):
+                    if str(l).lstrip().startswith(x):
+                        out(f.outf, '</code><pre class="tthl">')
+                        out(f.outf, l + '</pre><code class="tthl">')
+                        break
+                else:
+                    for x in (":", ".", "-"):
+                        if str(l).lstrip().startswith(x):
+                            out(f.outf, "<br>" + prependnbsps(l))
+                            break
+                    else:
+                        if str(l).lstrip().startswith("="):
+                            out(f.outf, prependnbsps(l) + "<br>")
+                        else:
+                            out(f.outf, l)
+            else:
+                if l.startswith("\\#include{") or l.startswith("\\#includeraw{"):
+                    out(f.outf, l[1:])
+                elif l.startswith("#") and doincludes(f, l[1:]):
+                    continue
+                elif g[1] in ("python", "py") and l.strip().startswith('"""'):
+                    out(f.outf, '<span class="string">' + l)
+                    stringmode = True
+                else:
+                    language(f.outf, l, gethl(g[1]))
 
-  if raw:
-    return
-  elif ext_prog:
-    print('filtering through %s...' % ext_prog)
+    if raw:
+        return
+    elif ext_prog:
+        print(f"filtering through {ext_prog}...")
 
-    output,_ = Popen(ext_prog, shell=True, stdin=PIPE,
-                     stdout=PIPE).communicate(buff)
-    out(f.outf, output)
-  else:
-    if g[1] == 'jemdoc':
-      out(f.outf, f.conf['codeblockendtt'])
+        output, _ = Popen(ext_prog, shell=True, stdin=PIPE, stdout=PIPE).communicate(buff)
+        out(f.outf, output)
     else:
-      out(f.outf, f.conf['codeblockend'])
+        if g[1] == "jemdoc":
+            out(f.outf, f.conf["codeblockendtt"])
+        else:
+            out(f.outf, f.conf["codeblockend"])
+
 
 def prependnbsps(l):
-  g = re.search('(^ *)(.*)', l).groups()
-  return g[0].replace(' ', '&nbsp;') + g[1]
+    g = re.search("(^ *)(.*)", l).groups()
+    return g[0].replace(" ", "&nbsp;") + g[1]
+
 
 def inserttitle(f, t):
-  if t is not None:
-    hb(f.outf, f.conf['doctitle'], t)
+    if t is not None:
+        hb(f.outf, f.conf["doctitle"], t)
 
-    # Look for a subtitle.
-    if pc(f) != '\n':
-      hb(f.outf, f.conf['subtitle'], br(np(f), f))
+        # Look for a subtitle.
+        if pc(f) != "\n":
+            hb(f.outf, f.conf["subtitle"], br(np(f), f))
 
-    hb(f.outf, f.conf['doctitleend'], t)
+        hb(f.outf, f.conf["doctitleend"], t)
+
 
 def procfile(f):
-  f.linenum = 0
+    f.linenum = 0
 
-  menu = None
-  # convert these to a dictionary.
-  showfooter = True
-  showsourcelink = False
-  showlastupdated = True
-  showlastupdatedtime = True
-  nodefaultcss = False
-  fwtitle = False
-  css = []
-  js = []
-  title = None
-  while pc(f, False) == '#':
-    l = f.inf.readline().decode('utf-8')
-    f.linenum += 1
-    if doincludes(f, l[1:]):
-      continue
-    if l.startswith('# jemdoc:'):
-      l = l[len('# jemdoc:'):]
-      a = l.split(',')
-      # jem only handle one argument for now.
-      for b in a:
-        b = b.strip()
-        if b.startswith('menu'):
-          sidemenu = True
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          g = re.findall(r, b)
-          if len(g) > 3 or len(g) < 2:
-            raise SyntaxError('sidemenu error on line %d' % f.linenum)
+    menu = None
+    # convert these to a dictionary.
+    showfooter = True
+    showsourcelink = False
+    showlastupdated = True
+    showlastupdatedtime = True
+    nodefaultcss = False
+    fwtitle = False
+    css = []
+    js = []
+    title = None
+    while pc(f, False) == "#":
+        l = f.inf.readline().decode("utf-8")
+        f.linenum += 1
+        if doincludes(f, l[1:]):
+            continue
+        if l.startswith("# jemdoc:"):
+            l = l[len("# jemdoc:") :]
+            a = l.split(",")
+            # jem only handle one argument for now.
+            for b in a:
+                b = b.strip()
+                if b.startswith("menu"):
+                    r = re.compile(r"(?<!\\){(.*?)(?<!\\)}", re.M + re.S)
+                    g = re.findall(r, b)
+                    if len(g) > 3 or len(g) < 2:
+                        raise SyntaxError(f"sidemenu error on line {f.linenum}")
 
-          if len(g) == 2:
-            menu = (f, g[0], g[1], '')
-          else:
-            menu = (f, g[0], g[1], g[2])
+                    menu = (f, g[0], g[1], "") if len(g) == 2 else (f, g[0], g[1], g[2])
 
-        elif b.startswith('nofooter'):
-          showfooter = False
+                elif b.startswith("nofooter"):
+                    showfooter = False
 
-        elif b.startswith('nodate'):
-          showlastupdated = False
+                elif b.startswith("nodate"):
+                    showlastupdated = False
 
-        elif b.startswith('notime'):
-          showlastupdatedtime = False
+                elif b.startswith("notime"):
+                    showlastupdatedtime = False
 
-        elif b.startswith('fwtitle'):
-          fwtitle = True
+                elif b.startswith("fwtitle"):
+                    fwtitle = True
 
-        elif b.startswith('showsource'):
-          showsourcelink = True
+                elif b.startswith("showsource"):
+                    showsourcelink = True
 
-        elif b.startswith('nodefaultcss'):
-          nodefaultcss = True
+                elif b.startswith("nodefaultcss"):
+                    nodefaultcss = True
 
-        elif b.startswith('addcss'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          css += re.findall(r, b)
+                elif b.startswith("addcss"):
+                    r = re.compile(r"(?<!\\){(.*?)(?<!\\)}", re.M + re.S)
+                    css += re.findall(r, b)
 
-        elif b.startswith('addjs'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          js += re.findall(r, b)
+                elif b.startswith("addjs"):
+                    r = re.compile(r"(?<!\\){(.*?)(?<!\\)}", re.M + re.S)
+                    js += re.findall(r, b)
 
-        elif b.startswith('analytics'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          f.analytics = re.findall(r, b)[0]
+                elif b.startswith("analytics"):
+                    r = re.compile(r"(?<!\\){(.*?)(?<!\\)}", re.M + re.S)
+                    f.analytics = re.findall(r, b)[0]
 
-        elif b.startswith('title'):
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          g = re.findall(r, b)
-          if len(g) != 1:
-            raise SyntaxError('addtitle error on line %d' % f.linenum)
+                elif b.startswith("title"):
+                    r = re.compile(r"(?<!\\){(.*?)(?<!\\)}", re.M + re.S)
+                    g = re.findall(r, b)
+                    if len(g) != 1:
+                        raise SyntaxError(f"addtitle error on line {f.linenum}")
 
-          title = g[0]
+                    title = g[0]
 
-        elif b.startswith('noeqs'):
-          # Disables equation processing for this file. KaTeX or MathJax
-          # placeholders won't be emitted for $...$ / \(...\) blocks.
-          f.eqs = False
+                elif b.startswith("noeqs"):
+                    # Disables equation processing for this file. KaTeX or MathJax
+                    # placeholders won't be emitted for $...$ / \(...\) blocks.
+                    f.eqs = False
 
-  # Pre-scan body for equation markers so we know whether to emit the KaTeX
-  # stylesheet in the <head>. The file handle is positioned just past the
-  # directive block, so we read the rest, scan, and seek back.
-  if f.eqs:
-    body_start = f.inf.tell()
-    snapshot = f.inf.read()
-    f.inf.seek(body_start)
-    if re.search(rb'(?<!\\)\$|(?<!\\)\\\(', snapshot):
-      f.has_equations = True
-    del snapshot
+    # Pre-scan body for equation markers so we know whether to emit the KaTeX
+    # stylesheet in the <head>. The file handle is positioned just past the
+    # directive block, so we read the rest, scan, and seek back.
+    if f.eqs:
+        body_start = f.inf.tell()
+        snapshot = f.inf.read()
+        f.inf.seek(body_start)
+        if re.search(rb"(?<!\\)\$|(?<!\\)\\\(", snapshot):
+            f.has_equations = True
+        del snapshot
 
-  # Get the file started with the firstbit.
-  out(f.outf, f.conf['firstbit'])
+    # Get the file started with the firstbit.
+    out(f.outf, f.conf["firstbit"])
 
-  if not nodefaultcss:
-    out(f.outf, f.conf['defaultcss'])
+    if not nodefaultcss:
+        out(f.outf, f.conf["defaultcss"])
 
-  # Only emit the KaTeX stylesheet on pages that actually got server-side
-  # rendering. If KaTeX is unavailable, the equation passthrough fallback
-  # expects a client-side renderer loaded via a conf override; pulling in
-  # KaTeX's CSS without its JS would be useless.
-  if f.has_equations and KATEX_PATH and 'katexcss' in f.conf:
-    out(f.outf, f.conf['katexcss'])
+    # Only emit the KaTeX stylesheet on pages that actually got server-side
+    # rendering. If KaTeX is unavailable, the equation passthrough fallback
+    # expects a client-side renderer loaded via a conf override; pulling in
+    # KaTeX's CSS without its JS would be useless.
+    if f.has_equations and KATEX_PATH and "katexcss" in f.conf:
+        out(f.outf, f.conf["katexcss"])
 
-  # Add per-file css lines here.
-  for i in range(len(css)):
-    if '.css' not in css[i]:
-      css[i] += '.css'
+    # Add per-file css lines here.
+    for i in range(len(css)):
+        if ".css" not in css[i]:
+            css[i] += ".css"
 
-  for x in css:
-    hb(f.outf, f.conf['specificcss'], x)
+    for x in css:
+        hb(f.outf, f.conf["specificcss"], x)
 
-  for x in js:
-    hb(f.outf, f.conf['specificjs'], x)
+    for x in js:
+        hb(f.outf, f.conf["specificjs"], x)
 
-  # Look for a title.
-  if pc(f) == '=': # don't check exact number f.outf '=' here jem.
-    t = br(nl(f), f)[:-1]
-    if title is None:
-      title = re.sub(' *(<br>)|(&nbsp;) *', ' ', t)
-  else:
-    t = None
-
-  #if title:
-  hb(f.outf, f.conf['windowtitle'], title)
-
-  out(f.outf, f.conf['bodystart'])
-
-
-  if f.analytics:
-    hb(f.outf, f.conf['analytics'], f.analytics)
-
-  if fwtitle:
-    out(f.outf, f.conf['fwtitlestart'])
-    inserttitle(f, t)
-    out(f.outf, f.conf['fwtitleend'])
-
-  if menu:
-    out(f.outf, f.conf['menustart'])
-    insertmenuitems(*menu)
-    out(f.outf, f.conf['menuend'])
-  else:
-    out(f.outf, f.conf['nomenu'])
-
-  if not fwtitle:
-    inserttitle(f, t)
-
-  infoblock = False
-  imgblock = False
-  tableblock = False
-  while 1: # wait for EOF.
-    p = pc(f)
-
-    if p == '':
-      break
-
-    elif p == '\\(':
-      if not f.eqs:
-        break
-
-      s = nl(f)
-      # Quickly pull out the equation here:
-      # Check we don't already have the terminating character in a whole-line
-      # equation without linebreaks, eg \( Ax=b \):
-      if not s.strip().endswith(r'\)'):
-        while True:
-          l = nl(f, codemode=True)
-          if not l:
-            break
-          s += l
-          if l.strip() == r'\)':
-            break
-      r = br(s.strip(), f)
-      r = mathjaxeqresub(r)
-      out(f.outf, r)
-
-    # look for lists.
-    elif p == '-':
-      dashlist(f, False)
-
-    elif p == '.':
-      dashlist(f, True)
-
-    elif p == ':':
-      colonlist(f)
-
-    # look for titles.
-    elif p == '=':
-      (s, c) = nl(f, True)
-      # trim trailing \n.
-      s = s[:-1]
-      hb(f.outf, '<h%d>|</h%d>\n' % (c, c), br(s, f))
-
-    # look for comments.
-    elif p == '#':
-      l = nl(f)
-
-    elif p == '\n':
-      nl(f)
-
-    # look for blocks.
-    elif p == '~':
-      nl(f)
-      if infoblock:
-        out(f.outf, f.conf['infoblockend'])
-        infoblock = False
-        nl(f)
-        continue
-      elif imgblock:
-        out(f.outf, '</td></tr></table>\n')
-        imgblock = False
-        nl(f)
-        continue
-      elif tableblock:
-        out(f.outf, '</td></tr></table>\n')
-        tableblock = False
-        nl(f)
-        continue
-      else:
-        if pc(f) == '{':
-          l = allreplace(nl(f))
-          r = re.compile(r'(?<!\\){(.*?)(?<!\\)}', re.M + re.S)
-          g = re.findall(r, l)
-        else:
-          g = []
-
-        # process jemdoc markup in titles.
-        if len(g) >= 1:
-          g[0] = br(g[0], f)
-
-        if len(g) in (0, 1): # info block.
-          out(f.outf, f.conf['infoblock'])
-          infoblock = True
-          
-          if len(g) == 1: # info block.
-            hb(f.outf, f.conf['blocktitle'], g[0])
-
-          out(f.outf, f.conf['infoblockcontent'])
-
-        elif len(g) >= 2 and g[1] == 'table':
-          # handles
-          # {title}{table}{name}
-          # one | two ||
-          # three | four ||
-          name = ''
-          if len(g) >= 3 and g[2]:
-            name += ' id="%s"' % g[2]
-          out(f.outf, '<table%s>\n<tr class="r1"><td class="c1">' % name)
-          f.tablerow = 1
-          f.tablecol = 1
-
-          tableblock = True
-
-        elif len(g) == 2:
-          codeblock(f, g)
-
-        elif len(g) >= 4 and g[1] == 'img_left':
-          # handles
-          # {}{img_left}{source}{alttext}{width}{height}{linktarget}.
-          g += ['']*(7 - len(g))
-          
-          if g[4].isdigit():
-            g[4] += 'px'
-
-          if g[5].isdigit():
-            g[5] += 'px'
-
-          out(f.outf, '<table class="imgtable"><tr><td>\n')
-          if g[6]:
-            out(f.outf, '<a href="%s">' % g[6])
-          out(f.outf, '<img src="%s"' % g[2])
-          out(f.outf, ' alt="%s"' % g[3])
-          if g[4]:
-            out(f.outf, ' width="%s"' % g[4])
-          if g[5]:
-            out(f.outf, ' height="%s"' % g[5])
-          out(f.outf, ' />')
-          if g[6]:
-            out(f.outf, '</a>')
-          out(f.outf, '&nbsp;</td>\n<td>')
-          imgblock = True
-
-        else:
-          raise JandalError("couldn't handle block", f.linenum)
-
+    # Look for a title.
+    if pc(f) == "=":  # don't check exact number f.outf '=' here jem.
+        t = br(nl(f), f)[:-1]
+        if title is None:
+            title = re.sub(" *(<br>)|(&nbsp;) *", " ", t)
     else:
-      s = br(np(f), f, tableblock)
-      if s:
-        if tableblock:
-          hb(f.outf, '|\n', s)
+        t = None
+
+    # if title:
+    hb(f.outf, f.conf["windowtitle"], title)
+
+    out(f.outf, f.conf["bodystart"])
+
+    if f.analytics:
+        hb(f.outf, f.conf["analytics"], f.analytics)
+
+    if fwtitle:
+        out(f.outf, f.conf["fwtitlestart"])
+        inserttitle(f, t)
+        out(f.outf, f.conf["fwtitleend"])
+
+    if menu:
+        out(f.outf, f.conf["menustart"])
+        insertmenuitems(*menu)
+        out(f.outf, f.conf["menuend"])
+    else:
+        out(f.outf, f.conf["nomenu"])
+
+    if not fwtitle:
+        inserttitle(f, t)
+
+    infoblock = False
+    imgblock = False
+    tableblock = False
+    while 1:  # wait for EOF.
+        p = pc(f)
+
+        if p == "":
+            break
+
+        elif p == "\\(":
+            if not f.eqs:
+                break
+
+            s = nl(f)
+            # Quickly pull out the equation here:
+            # Check we don't already have the terminating character in a whole-line
+            # equation without linebreaks, eg \( Ax=b \):
+            if not s.strip().endswith(r"\)"):
+                while True:
+                    l = nl(f, codemode=True)
+                    if not l:
+                        break
+                    s += l
+                    if l.strip() == r"\)":
+                        break
+            r = br(s.strip(), f)
+            r = mathjaxeqresub(r)
+            out(f.outf, r)
+
+        # look for lists.
+        elif p == "-":
+            dashlist(f, False)
+
+        elif p == ".":
+            dashlist(f, True)
+
+        elif p == ":":
+            colonlist(f)
+
+        # look for titles.
+        elif p == "=":
+            (s, c) = nl(f, True)
+            # trim trailing \n.
+            s = s[:-1]
+            hb(f.outf, f"<h{c}>|</h{c}>\n", br(s, f))
+
+        # look for comments.
+        elif p == "#":
+            l = nl(f)
+
+        elif p == "\n":
+            nl(f)
+
+        # look for blocks.
+        elif p == "~":
+            nl(f)
+            if infoblock:
+                out(f.outf, f.conf["infoblockend"])
+                infoblock = False
+                nl(f)
+                continue
+            elif imgblock:
+                out(f.outf, "</td></tr></table>\n")
+                imgblock = False
+                nl(f)
+                continue
+            elif tableblock:
+                out(f.outf, "</td></tr></table>\n")
+                tableblock = False
+                nl(f)
+                continue
+            else:
+                if pc(f) == "{":
+                    l = allreplace(nl(f))
+                    r = re.compile(r"(?<!\\){(.*?)(?<!\\)}", re.M + re.S)
+                    g = re.findall(r, l)
+                else:
+                    g = []
+
+                # process jemdoc markup in titles.
+                if len(g) >= 1:
+                    g[0] = br(g[0], f)
+
+                if len(g) in (0, 1):  # info block.
+                    out(f.outf, f.conf["infoblock"])
+                    infoblock = True
+
+                    if len(g) == 1:  # info block.
+                        hb(f.outf, f.conf["blocktitle"], g[0])
+
+                    out(f.outf, f.conf["infoblockcontent"])
+
+                elif len(g) >= 2 and g[1] == "table":
+                    # handles
+                    # {title}{table}{name}
+                    # one | two ||
+                    # three | four ||
+                    name = ""
+                    if len(g) >= 3 and g[2]:
+                        name += f' id="{g[2]}"'
+                    out(f.outf, f'<table{name}>\n<tr class="r1"><td class="c1">')
+                    f.tablerow = 1
+                    f.tablecol = 1
+
+                    tableblock = True
+
+                elif len(g) == 2:
+                    codeblock(f, g)
+
+                elif len(g) >= 4 and g[1] == "img_left":
+                    # handles
+                    # {}{img_left}{source}{alttext}{width}{height}{linktarget}.
+                    g += [""] * (7 - len(g))
+
+                    if g[4].isdigit():
+                        g[4] += "px"
+
+                    if g[5].isdigit():
+                        g[5] += "px"
+
+                    out(f.outf, '<table class="imgtable"><tr><td>\n')
+                    if g[6]:
+                        out(f.outf, f'<a href="{g[6]}">')
+                    out(f.outf, f'<img src="{g[2]}"')
+                    out(f.outf, f' alt="{g[3]}"')
+                    if g[4]:
+                        out(f.outf, f' width="{g[4]}"')
+                    if g[5]:
+                        out(f.outf, f' height="{g[5]}"')
+                    out(f.outf, " />")
+                    if g[6]:
+                        out(f.outf, "</a>")
+                    out(f.outf, "&nbsp;</td>\n<td>")
+                    imgblock = True
+
+                else:
+                    raise JandalError("couldn't handle block", f.linenum)
+
         else:
-          hb(f.outf, '<p>|</p>\n', s)
+            s = br(np(f), f, tableblock)
+            if s:
+                if tableblock:
+                    hb(f.outf, "|\n", s)
+                else:
+                    hb(f.outf, "<p>|</p>\n", s)
 
-  if showfooter and (showlastupdated or showsourcelink):
-    out(f.outf, f.conf['footerstart'])
-    if showlastupdated:
-      if showlastupdatedtime:
-        ts = '%Y-%m-%d %H:%M:%S %Z'
-      else:
-        ts = '%Y-%m-%d'
-      s = time.strftime(ts, time.localtime(time.time()))
-      hb(f.outf, f.conf['lastupdated'], s)
-    if showsourcelink:
-      hb(f.outf, f.conf['sourcelink'], f.inname)
-    out(f.outf, f.conf['footerend'])
+    if showfooter and (showlastupdated or showsourcelink):
+        out(f.outf, f.conf["footerstart"])
+        if showlastupdated:
+            ts = "%Y-%m-%d %H:%M:%S %Z" if showlastupdatedtime else "%Y-%m-%d"
+            s = time.strftime(ts, time.localtime(time.time()))
+            hb(f.outf, f.conf["lastupdated"], s)
+        if showsourcelink:
+            hb(f.outf, f.conf["sourcelink"], f.inname)
+        out(f.outf, f.conf["footerend"])
 
-  if menu:
-    out(f.outf, f.conf['menulastbit'])
-  else:
-    out(f.outf, f.conf['nomenulastbit'])
+    if menu:
+        out(f.outf, f.conf["menulastbit"])
+    else:
+        out(f.outf, f.conf["nomenulastbit"])
 
-  out(f.outf, f.conf['bodyend'])
+    out(f.outf, f.conf["bodyend"])
 
-  if f.outf is not sys.stdout:
-    # jem: close file here.
-    # jem: XXX this is where you would intervene to do a fast open/close.
-    f.outf.close()
+    if f.outf is not sys.stdout:
+        # jem: close file here.
+        # jem: XXX this is where you would intervene to do a fast open/close.
+        f.outf.close()
+
 
 def main():
-  if len(sys.argv) == 1 or sys.argv[1] in ('--help', '-h'):
-    showhelp()
-    raise SystemExit
-  if sys.argv[1] == '--show-config':
-    print(standardconf())
-    raise SystemExit
-  if sys.argv[1] == '--version':
-    info()
-    raise SystemExit
+    if len(sys.argv) == 1 or sys.argv[1] in ("--help", "-h"):
+        showhelp()
+        raise SystemExit
+    if sys.argv[1] == "--show-config":
+        print(standardconf())
+        raise SystemExit
+    if sys.argv[1] == "--version":
+        info()
+        raise SystemExit
 
-  outoverride = False
-  confoverride = False
-  outname = None
-  confnames = []
-  for i in range(1, len(sys.argv), 2):
-    if sys.argv[i] == '-o':
-      if outoverride:
-        raise RuntimeError("only one output file / directory, please")
-      outname = sys.argv[i+1]
-      outoverride = True
-    elif sys.argv[i] == '-c':
-      if confoverride:
-        raise RuntimeError("only one config file, please")
-      confnames.append(sys.argv[i+1])
-      confoverride = True
-    elif sys.argv[i].startswith('-'):
-      raise RuntimeError('unrecognised argument %s, try --help' % sys.argv[i])
-    else:
-      break
+    outoverride = False
+    confoverride = False
+    outname = None
+    confnames = []
+    for i in range(1, len(sys.argv), 2):
+        if sys.argv[i] == "-o":
+            if outoverride:
+                raise RuntimeError("only one output file / directory, please")
+            outname = sys.argv[i + 1]
+            outoverride = True
+        elif sys.argv[i] == "-c":
+            if confoverride:
+                raise RuntimeError("only one config file, please")
+            confnames.append(sys.argv[i + 1])
+            confoverride = True
+        elif sys.argv[i].startswith("-"):
+            raise RuntimeError(f"unrecognised argument {sys.argv[i]}, try --help")
+        else:
+            break
 
-  conf = parseconf(confnames)
+    conf = parseconf(confnames)
 
-  innames = []
-  for j in range(i, len(sys.argv)):
-    # First, if not a file and no dot, try opening .jemdoc. Otherwise, fall back
-    # to just doing exactly as asked.
-    inname = sys.argv[j]
-    if not os.path.isfile(inname) and '.' not in inname:
-      inname += '.jemdoc'
+    innames = []
+    for j in range(i, len(sys.argv)):
+        # First, if not a file and no dot, try opening .jemdoc. Otherwise, fall back
+        # to just doing exactly as asked.
+        inname = sys.argv[j]
+        if not os.path.isfile(inname) and "." not in inname:
+            inname += ".jemdoc"
 
-    innames.append(inname)
+        innames.append(inname)
 
-  if outname is not None and not os.path.isdir(outname) and len(innames) > 1:
-    raise RuntimeError('cannot handle one outfile with multiple infiles')
+    if outname is not None and not os.path.isdir(outname) and len(innames) > 1:
+        raise RuntimeError("cannot handle one outfile with multiple infiles")
 
-  for inname in innames:
-    if outname is None:
-      thisout = re.sub(r'.jemdoc$', '', inname) + '.html'
-    elif os.path.isdir(outname):
-      # if directory, prepend directory to automatically generated name.
-      thisout = outname + re.sub(r'.jemdoc$', '', inname) + '.html'
-    else:
-      thisout = outname
+    for inname in innames:
+        if outname is None:
+            thisout = re.sub(r".jemdoc$", "", inname) + ".html"
+        elif os.path.isdir(outname):
+            # if directory, prepend directory to automatically generated name.
+            thisout = outname + re.sub(r".jemdoc$", "", inname) + ".html"
+        else:
+            thisout = outname
 
-    infile = open(inname, 'rb')
-    outfile = open(thisout, 'w')
+        with open(inname, "rb") as infile, open(thisout, "w", encoding="utf-8") as outfile:
+            f = controlstruct(infile, outfile, conf, inname)
+            procfile(f)
 
-#    print(infile.read())
-    f = controlstruct(infile, outfile, conf, inname)
-    procfile(f)
 
 #
-if __name__ == '__main__':
-  main()
+if __name__ == "__main__":
+    main()

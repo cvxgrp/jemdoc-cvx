@@ -22,14 +22,23 @@ FIXTURES = REPO / "tests" / "fixtures"
 
 EXAMPLE_INPUTS = ["link", "mathjax", "underscore"]
 WWW_INPUTS = [
-    "index", "cheatsheet", "contact", "download", "revision", "using",
-    "menu", "stuff", "extra", "example", "modelines", "htmlchanges",
-    "latex", "tables",
+    "index",
+    "cheatsheet",
+    "contact",
+    "download",
+    "revision",
+    "using",
+    "menu",
+    "stuff",
+    "extra",
+    "example",
+    "modelines",
+    "htmlchanges",
+    "latex",
+    "tables",
 ]
 
-TIMESTAMP_RE = re.compile(
-    r"Page generated \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+,"
-)
+TIMESTAMP_RE = re.compile(r"Page generated \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} [A-Z]+,")
 
 
 def _normalize(html: str) -> str:
