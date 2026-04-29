@@ -79,3 +79,34 @@ in place of +<tt class="tthl">+. Update any custom css selectors that targeted
 without the trailing slash (HTML5).
 
 If your conf does not override these blocks, no changes are needed.
+
+== Theme: jemdoc-cvx vs. legacy jemdoc
+
+jemdoc-cvx 1.0 ships with a new default stylesheet, +jemdoc-cvx.css+. It
+preserves the same selectors and overall layout as the original
++jemdoc.css+, but updates the typography (Source Serif 4 for body,
+JetBrains Mono for code, both self-hosted as woff2) and softens the
+palette: warm off-white background, muted slate-blue headings and links,
+and a cool light-gray inline-code background instead of the original
+yellow.
+
+The legacy +jemdoc.css+ is still shipped in the +css\/+ directory and
+remains fully functional. To opt back into the original look on a single
+page, add the modeline:
+
+~~~
+{}{}
+\# jemdoc: nodefaultcss, addcss{jemdoc}
+~~~
+
+To switch your whole site back, override +\[defaultcss\]+ in your conf:
+
+~~~
+{}{}
+[defaultcss]
+<link rel="stylesheet" href="jemdoc.css">
+~~~
+
+If you self-host the new theme, copy both +jemdoc-cvx.css+ and the
++fonts\/+ directory (three woff2 files) next to your output html. The
+stylesheet references the fonts by relative path.

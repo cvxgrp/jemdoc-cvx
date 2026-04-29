@@ -2,9 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="generator" content="jemdoc, see http://jemdoc.jaboc.net/">
-<link rel="stylesheet" href="jemdoc.css">
-<link rel="stylesheet" href="jacob.css">
+<meta name="generator" content="jemdoc, see https://www.cvxgrp.org/jemdoc-cvx/index.html">
+<link rel="stylesheet" href="jemdoc-cvx.css">
 <title>jemdoc &ndash; html changes</title>
 </head>
 <body>
@@ -129,9 +128,37 @@ without the trailing slash (HTML5).
 </ul>
 <p>If your conf does not override these blocks, no changes are needed.
 </p>
+<h2>Theme: jemdoc-cvx vs. legacy jemdoc</h2>
+<p>jemdoc-cvx 1.0 ships with a new default stylesheet, <code>jemdoc-cvx.css</code>. It
+preserves the same selectors and overall layout as the original
+<code>jemdoc.css</code>, but updates the typography (Source Serif 4 for body,
+JetBrains Mono for code, both self-hosted as woff2) and softens the
+palette: warm off-white background, muted slate-blue headings and links,
+and a cool light-gray inline-code background instead of the original
+yellow.
+</p>
+<p>The legacy <code>jemdoc.css</code> is still shipped in the <code>css/</code> directory and
+remains fully functional. To opt back into the original look on a single
+page, add the modeline:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+\# jemdoc: nodefaultcss, addcss{jemdoc}
+</pre></div></div>
+<p>To switch your whole site back, override <code>[defaultcss]</code> in your conf:
+</p>
+<div class="codeblock">
+<div class="blockcontent"><pre>
+[defaultcss]
+&lt;link rel="stylesheet" href="jemdoc.css"&gt;
+</pre></div></div>
+<p>If you self-host the new theme, copy both <code>jemdoc-cvx.css</code> and the
+<code>fonts/</code> directory (three woff2 files) next to your output html. The
+stylesheet references the fonts by relative path.
+</p>
 <div id="footer">
 <div id="footer-text">
-Page generated 2026-04-28 20:38:19 PDT, by <a href="https://github.com/wsshin/jemdoc_mathjax" target="blank">jemdoc+MathJax</a>.
+Page generated 2026-04-29 09:27:01 PDT, by <a href="https://github.com/cvxgrp/jemdoc-cvx" target="blank">jemdoc-cvx</a>.
 </div>
 </div>
 </main>

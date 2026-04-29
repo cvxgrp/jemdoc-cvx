@@ -1,0 +1,402 @@
+/* jemdoc-cvx default theme.
+ *
+ * Modernizes the original jemdoc.css palette and typography while keeping
+ * the same selectors and overall layout intact. Self-contained: copy this
+ * file (and the adjacent fonts/ directory) next to your output html.
+ *
+ * Changes from the legacy jemdoc.css:
+ *   - Body type: Source Serif 4 (variable, woff2, self-hosted), replaces Georgia.
+ *   - Mono: JetBrains Mono (variable, woff2, self-hosted), replaces Monaco.
+ *   - Inline `+code+` background: cool light gray (was the iconic yellow).
+ *   - Background: very subtle warm off-white (was pure white).
+ *   - Heading / link color: muted slate-blue (was a more saturated steel-blue).
+ *   - Heading underline: lifted to a softer gray.
+ */
+
+@font-face {
+	font-family: "Source Serif 4";
+	src: url("fonts/source-serif-4-latin-wght-normal.woff2") format("woff2-variations");
+	font-weight: 200 900;
+	font-style: normal;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "Source Serif 4";
+	src: url("fonts/source-serif-4-latin-wght-italic.woff2") format("woff2-variations");
+	font-weight: 200 900;
+	font-style: italic;
+	font-display: swap;
+}
+
+@font-face {
+	font-family: "JetBrains Mono";
+	src: url("fonts/jetbrains-mono-latin-wght-normal.woff2") format("woff2-variations");
+	font-weight: 100 800;
+	font-style: normal;
+	font-display: swap;
+}
+
+#tlayout {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	background: #fbfaf7;
+}
+
+body {
+	background: #fbfaf7;
+	color: #1f1f1f;
+	font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+	padding-bottom: 8px;
+	margin: 0;
+}
+
+#layout-menu {
+	background: #f3f1ec;
+	border: 1px solid #e1ddd3;
+	padding-top: 0.5em;
+	padding-left: 8px;
+	padding-right: 8px;
+	font-size: 1.0em;
+	white-space: nowrap;
+	text-align: left;
+}
+
+#layout-content {
+	padding-top: 0.0em;
+	padding-left: 1.0em;
+	padding-right: 1.0em;
+	border: none;
+	background: #fbfaf7;
+	text-align: left;
+}
+
+#layout-menu a {
+	line-height: 1.5em;
+	margin-left: 0.5em;
+}
+
+code {
+	background: #eef0f4;
+	padding: 0.05em 0.25em;
+	border-radius: 3px;
+}
+
+pre, code {
+	font-size: 90%;
+	font-family: "JetBrains Mono", Menlo, Consolas, monospace;
+}
+
+pre code {
+	/* Inside <pre> blocks, drop the inline-code chip styling. */
+	background: transparent;
+	padding: 0;
+	border-radius: 0;
+}
+
+a, a > code {
+	color: #3a5a80;
+	text-decoration: none;
+}
+
+a:hover {
+	border-bottom: 1px #8a9cb1 dotted;
+}
+
+#layout-menu a.current:link, #layout-menu a.current:visited {
+	color: #2a4566;
+	border-bottom: 1px #8a9cb1 solid;
+}
+#layout-menu a:link, #layout-menu a:visited, #layout-menu a:hover {
+	color: #5a7da3;
+	text-decoration: none;
+}
+#layout-menu a:hover {
+	text-decoration: none;
+}
+
+div.menu-category {
+	border-bottom: 1px solid #b8b3a8;
+	margin-top: 0.8em;
+	padding-top: 0.2em;
+	padding-bottom: 0.1em;
+	font-weight: bold;
+}
+
+div.menu-item {
+	padding-left: 16px;
+	text-indent: -16px;
+}
+
+div#toptitle {
+	padding-bottom: 0.2em;
+	margin-bottom: 1.5em;
+	border-bottom: 3px double #c8c2b3;
+}
+
+/* Reduce space if we begin the page with a title. */
+div#toptitle + h2, div#toptitle + h3 {
+	margin-top: -0.7em;
+}
+
+div#subtitle {
+	margin-top: 0.0em;
+	margin-bottom: 0.0em;
+	padding-top: 0em;
+	padding-bottom: 0.1em;
+}
+
+em {
+	font-style: italic;
+}
+
+strong {
+	font-weight: bold;
+}
+
+
+h1, h2, h3 {
+	color: #3a5a80;
+	margin-top: 0.7em;
+	margin-bottom: 0.3em;
+	padding-bottom: 0.2em;
+	line-height: 1.0;
+	padding-top: 0.5em;
+	border-bottom: 1px solid #d4d4d0;
+}
+
+h1 {
+	font-size: 165%;
+}
+
+h2 {
+	padding-top: 0.8em;
+	font-size: 125%;
+}
+
+h2 + h3 {
+	padding-top: 0.2em;
+}
+
+h3 {
+	font-size: 110%;
+	border-bottom: none;
+}
+
+p {
+	margin-top: 0.0em;
+	margin-bottom: 0.8em;
+	padding: 0;
+	line-height: 1.4;
+}
+
+pre {
+	padding: 0;
+	margin: 0;
+}
+
+div#footer {
+	font-size: small;
+	border-top: 1px solid #d4d4d0;
+	padding-top: 0.1em;
+	margin-top: 4.0em;
+	color: #b8b3a8;
+}
+
+div#footer a {
+	color: #8a9cb1;
+}
+
+div#footer-text {
+	float: left;
+	padding-bottom: 8px;
+}
+
+ul, ol, dl {
+	margin-top: 0.2em;
+	padding-top: 0;
+	margin-bottom: 0.8em;
+}
+
+dt {
+	margin-top: 0.5em;
+	margin-bottom: 0;
+}
+
+dl {
+	margin-left: 20px;
+}
+
+dd {
+	color: #2a2a2a;
+}
+
+dd > *:first-child {
+	margin-top: 0;
+}
+
+ul {
+	list-style-position: outside;
+	list-style-type: square;
+}
+
+p + ul, p + ol {
+	margin-top: -0.5em;
+}
+
+li ul, li ol {
+	margin-top: -0.3em;
+}
+
+ol {
+	list-style-position: outside;
+	list-style-type: decimal;
+}
+
+li p, dd p {
+	margin-bottom: 0.3em;
+}
+
+
+ol ol {
+	list-style-type: lower-alpha;
+}
+
+ol ol ol {
+	list-style-type: lower-roman;
+}
+
+p + div.codeblock {
+	margin-top: -0.6em;
+}
+
+div.codeblock, div.infoblock {
+	margin-right: 0%;
+	margin-top: 1.2em;
+	margin-bottom: 1.3em;
+}
+
+div.blocktitle {
+	font-weight: bold;
+	color: #b86c52;
+	margin-top: 1.2em;
+	margin-bottom: 0.1em;
+}
+
+div.blockcontent {
+	border: 1px solid #dcd6c8;
+	padding: 0.3em 0.5em;
+}
+
+div.infoblock > div.blockcontent {
+	background: #fbf6e8;
+}
+
+div.blockcontent p + ul, div.blockcontent p + ol {
+	margin-top: 0.4em;
+}
+
+div.infoblock p {
+	margin-bottom: 0em;
+}
+
+div.infoblock li p, div.infoblock dd p {
+	margin-bottom: 0.5em;
+}
+
+div.infoblock p + p {
+	margin-top: 0.8em;
+}
+
+div.codeblock > div.blockcontent {
+	background: #f3f1ec;
+}
+
+span.pycommand {
+	color: #1c5078;
+}
+
+span.statement {
+	color: #4a8a4a;
+}
+span.builtin {
+	color: #3a5a80;
+}
+span.special {
+	color: #a85c4a;
+}
+span.operator {
+	color: #a85c4a;
+}
+span.error {
+	color: #b04848;
+}
+span.comment, span.comment > *, span.string, span.string > * {
+	color: #7a7770;
+}
+
+@media print {
+	#layout-menu {
+		display: none;
+	}
+
+}
+
+#fwtitle {
+	margin: 2px;
+}
+
+#fwtitle #toptitle {
+	padding-left: 0.5em;
+	margin-bottom: 0.5em;
+}
+
+#layout-content h1:first-child, #layout-content h2:first-child, #layout-content h3:first-child {
+	margin-top: -0.7em;
+}
+
+div#toptitle h1, #layout-content div#toptitle h1 {
+	margin-bottom: 0.0em;
+	padding-bottom: 0.1em;
+	padding-top: 0;
+	margin-top: 0.5em;
+	border-bottom: none;
+}
+
+.eqwl {
+	text-align: center;
+	padding-top: 0.6em;
+	padding-bottom: 0.2em;
+	margin: 0;
+}
+
+table {
+	border: 2px solid #2a2a2a;
+	border-collapse: collapse;
+}
+
+td {
+	padding: 2px;
+	padding-left: 0.5em;
+	padding-right: 0.5em;
+	text-align: center;
+	border: 1px solid #b8b3a8;
+}
+
+table + table {
+	margin-top: 1em;
+}
+
+tr.heading {
+	font-weight: bold;
+	border-bottom: 2px solid #2a2a2a;
+}
+
+img {
+	border: none;
+}
+
+table.imgtable, table.imgtable td {
+	border: none;
+	text-align: left;
+}

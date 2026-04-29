@@ -1,9 +1,11 @@
 {
-  "name": "jemdoc-cvx-katex",
+  "name": "jemdoc-cvx-assets",
   "version": "1.0.0",
-  "description": "Pinned KaTeX dependency for jemdoc-cvx server-side equation rendering.",
+  "description": "Pinned build-time dependencies for jemdoc-cvx: KaTeX (server-side equation rendering) and the Source Serif 4 + JetBrains Mono font files used by the default theme.",
   "private": true,
   "dependencies": {
-    "katex": "0.16.11"
+    "katex": "0.16.11",
+    "@fontsource-variable/source-serif-4": "5.2.5",
+    "@fontsource-variable/jetbrains-mono": "5.2.5"
   }
 }

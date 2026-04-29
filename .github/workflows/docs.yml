@@ -37,14 +37,17 @@ jobs:
 
       - name: Stage deploy directory
         # The rendered HTML lives in www/html/, but it links to a few assets
-        # that live elsewhere in the repo: the CSS files referenced by
-        # www/jemdoc.conf's [defaultcss] block, the .jemdoc sources (because
-        # `showsource` pages link back to them), and dist/jemdoc.vim (linked
-        # from stuff.jemdoc).
+        # that live elsewhere in the repo: the default-theme stylesheet
+        # (jemdoc-cvx.css) and its self-hosted woff2 fonts, the legacy theme
+        # files (jemdoc.css + theme variants) for users who load them, the
+        # .jemdoc sources (because `showsource` pages link back to them), and
+        # dist/jemdoc.vim (linked from stuff.jemdoc).
         run: |
           mkdir -p _site
           cp -r www/html/. _site/
-          cp css/jemdoc.css css/jacob.css _site/
+          cp css/jemdoc-cvx.css css/jemdoc.css css/jacob.css _site/
+          mkdir -p _site/fonts
+          cp css/fonts/*.woff2 _site/fonts/
           cp www/*.jemdoc _site/
           cp -r www/dist _site/dist
 
