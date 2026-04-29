@@ -62,6 +62,6 @@ formatting details can be adjusted using CSS.
 - A random inequality might look like $3x + 2y^{4k + 6} \geq z$.
 - KaTeX-rendered output is cached by content hash in +katexcache/+ next to the
   source, so the second build of a page is fast.
-- The +# jemdoc: noeqs+ modeline disables KaTeX rendering for a page; +$..$+
-  and +\\(..\\)+ pass through unchanged. See the [modelines.html modelines]
+- The +# jemdoc: noeqs+ modeline disables KaTeX rendering for a page; \+\$..\$\+
+  and \+\\(..\\)\+ pass through unchanged. See the [modelines.html modelines]
   page.
